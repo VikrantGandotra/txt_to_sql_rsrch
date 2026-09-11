@@ -1,0 +1,19 @@
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Environment credentials
+.env
+.env.local
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Data and large artifacts
+data/
+*.sqlite
+*.db

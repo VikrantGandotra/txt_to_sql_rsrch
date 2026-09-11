@@ -1,0 +1,9 @@
+openai>=1.0.0
+langfuse>=2.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+langchain-core
+langgraph
+dspy-ai
+networkx
+python-dotenv

@@ -1,0 +1,22 @@
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolves: .../mars_ablation/src/config.py -> parent is 'src' -> parent.parent is 'mars_ablation'
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+
+class Settings(BaseSettings):
+    openrouter_api_key: str
+    langfuse_public_key: str
+    langfuse_secret_key: str
+    langfuse_base_url: str 
+    
+    # model_name: str = "qwen/qwen2.5-coder-7b-instruct"
+    model_name: str = "google/gemini-2.5-flash"
+    
+    model_config = SettingsConfigDict(
+        env_file=ENV_PATH, 
+        env_file_encoding='utf-8', 
+        extra='ignore'
+    )
+
+settings = Settings()
