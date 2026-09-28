@@ -1,8 +1,10 @@
 import sqlite3
 import re
+from contextlib import closing
 from typing import Dict, List, Set, Tuple, Optional
 import networkx as nx
 from networkx.algorithms.approximation import steiner_tree
+import difflib
 
 class DatabaseGraphPruner:
     """
@@ -19,47 +21,48 @@ class DatabaseGraphPruner:
         self._build_schema_graph()
 
     def _build_schema_graph(self):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            cursor = conn.cursor()
 
-        # 1. Fetch tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
-        tables = [row[0] for row in cursor.fetchall()]
+            # 1. Fetch tables
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+            tables = [row[0] for row in cursor.fetchall()]
 
-        for tbl in tables:
-            self.graph.add_node(tbl)
-            self.table_columns[tbl] = []
-            self.primary_keys[tbl] = set()
-            self.foreign_keys[tbl] = set()
+            # Referenced tables may appear later in SQLite's creation order.
+            for tbl in tables:
+                self.graph.add_node(tbl)
+                self.table_columns[tbl] = []
+                self.primary_keys[tbl] = set()
+                self.foreign_keys[tbl] = set()
 
-            # Column metadata & primary keys
-            cursor.execute(f"PRAGMA table_info(`{tbl}`);")
-            for col in cursor.fetchall():
-                # col: (cid, name, type, notnull, dflt_value, pk)
-                col_name = col[1]
-                is_pk = bool(col[5])
-                self.table_columns[tbl].append(col_name)
-                if is_pk:
-                    self.primary_keys[tbl].add(col_name)
+            for tbl in tables:
+                # Column metadata & primary keys
+                cursor.execute(f"PRAGMA table_info(`{tbl}`);")
+                for col in cursor.fetchall():
+                    # col: (cid, name, type, notnull, dflt_value, pk)
+                    col_name = col[1]
+                    is_pk = bool(col[5])
+                    self.table_columns[tbl].append(col_name)
+                    if is_pk:
+                        self.primary_keys[tbl].add(col_name)
 
-            # Explicit Foreign Keys
-            cursor.execute(f"PRAGMA foreign_key_list(`{tbl}`);")
-            for fk in cursor.fetchall():
-                # fk: (id, seq, target_table, from_col, to_col, on_update, on_delete, match)
-                target_table = fk[2]
-                from_col = fk[3]
-                to_col = fk[4]
-                if target_table in tables and target_table != tbl:
-                    self.foreign_keys[tbl].add(from_col)
-                    self.foreign_keys[target_table].add(to_col)
-                    self.graph.add_edge(
-                        tbl,
-                        target_table,
-                        weight=1.0,
-                        relationship=f"{tbl}.{from_col} = {target_table}.{to_col}"
-                    )
+                # Explicit Foreign Keys
+                cursor.execute(f"PRAGMA foreign_key_list(`{tbl}`);")
+                for fk in cursor.fetchall():
+                    # fk: (id, seq, target_table, from_col, to_col, on_update, on_delete, match)
+                    target_table = fk[2]
+                    from_col = fk[3]
+                    to_col = fk[4]
+                    if target_table in tables and target_table != tbl:
+                        self.foreign_keys[tbl].add(from_col)
+                        self.foreign_keys[target_table].add(to_col)
+                        self.graph.add_edge(
+                            tbl,
+                            target_table,
+                            weight=1.0,
+                            relationship=f"{tbl}.{from_col} = {target_table}.{to_col}"
+                        )
 
-        conn.close()
         # 2. Add implicit foreign key edges for missing constraints
         self._infer_implicit_foreign_keys(tables)
 
@@ -100,25 +103,33 @@ class DatabaseGraphPruner:
                         self.foreign_keys[tbl_a].add(cols_a[key])
                         self.foreign_keys[tbl_b].add(cols_b[key])
 
+
     def extract_seeds(self, question: str, evidence: str) -> Tuple[Set[str], Set[str]]:
         """
-        Stage 2: Lexical matching against table and column names.
+        Stage 2: Lexical and Fuzzy matching against table and column names.
+        Handles plurals and slight typos (e.g., "student" -> "students") without needing an LLM.
         """
         text = f"{question} {evidence}".lower()
         tokens = set(re.findall(r"\b[a-z0-9_]+\b", text))
+        
+        # Filter out tiny stop words ('the', 'who', 'are') to avoid false positive fuzzy matches
+        meaningful_tokens = {t for t in tokens if len(t) > 3}
 
         seed_tables = set()
         seed_columns = set()
 
         for tbl, cols in self.table_columns.items():
             tbl_clean = tbl.lower().replace("_", "")
-            # Match table name directly or without underscores
-            if tbl.lower() in tokens or tbl_clean in tokens:
+            
+            # Exact match OR Fuzzy Match (Similarity > 85%)
+            if tbl.lower() in tokens or tbl_clean in tokens or any(difflib.SequenceMatcher(None, t, tbl_clean).ratio() > 0.85 for t in meaningful_tokens):
                 seed_tables.add(tbl)
 
             for col in cols:
                 col_clean = col.lower().replace("_", "")
-                if col.lower() in tokens or col_clean in tokens:
+                
+                # Exact match OR Fuzzy Match (Similarity > 85%)
+                if col.lower() in tokens or col_clean in tokens or any(difflib.SequenceMatcher(None, t, col_clean).ratio() > 0.85 for t in meaningful_tokens):
                     seed_tables.add(tbl)
                     seed_columns.add(f"{tbl}.{col}")
 

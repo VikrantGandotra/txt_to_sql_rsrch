@@ -9,10 +9,13 @@ class Settings(BaseSettings):
     langfuse_public_key: str
     langfuse_secret_key: str
     langfuse_base_url: str 
+
     
     # model_name: str = "qwen/qwen2.5-coder-7b-instruct"
-    model_name: str = "google/gemini-2.5-flash"
-    
+    # model_name: str = "google/gemini-2.5-flash"
+    # model_name = "qwen/qwen-2.5-coder-7b-instruct"
+    model_name: str = "qwen/qwen2.5-coder-7b-instruct"
+
     model_config = SettingsConfigDict(
         env_file=ENV_PATH, 
         env_file_encoding='utf-8', 
