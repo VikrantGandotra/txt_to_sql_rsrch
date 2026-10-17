@@ -12,8 +12,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.dspy_cache/
 
 # Data and large artifacts
 data/
 *.sqlite
 *.db
+
+# Generated run logs
+artifacts/

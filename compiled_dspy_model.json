@@ -1,0 +1,612 @@
+{
+  "decomposer": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "question": "State the most popular movie? When was it released and who is the director for the movie?\n\nEvidence: most popular movie refers to MAX(movie_popularity); when it was released refers to movie_release_year; director for the movie refers to director_name;",
+        "schema_ddl": "CREATE TABLE \"movies\" (\n  \"movie_id\" INTEGER NOT NULL,\n  \"movie_title\" TEXT,\n  \"movie_release_year\" INTEGER,\n  \"movie_url\" TEXT,\n  \"movie_title_language\" TEXT,\n  \"movie_popularity\" INTEGER,\n  \"movie_image_url\" TEXT,\n  \"director_id\" TEXT,\n  \"director_name\" TEXT,\n  \"director_url\" TEXT,\n  PRIMARY KEY (\"movie_id\")\n);\n\nCREATE TABLE \"ratings\" (\n  \"movie_id\" INTEGER,\n  \"rating_id\" INTEGER,\n  \"rating_url\" TEXT,\n  \"rating_score\" INTEGER,\n  \"rating_timestamp_utc\" TEXT,\n  \"critic\" TEXT,\n  \"critic_likes\" INTEGER,\n  \"critic_comments\" INTEGER,\n  \"user_id\" INTEGER,\n  \"user_trialist\" INTEGER,\n  \"user_subscriber\" INTEGER,\n  \"user_eligible_for_trial\" INTEGER,\n  \"user_has_payment_method\" INTEGER,\n  FOREIGN KEY (\"rating_id\") REFERENCES \"ratings\" (\"rating_id\") ON UPDATE NO ACTION ON DELETE NO ACTION,\n  FOREIGN KEY (\"movie_id\") REFERENCES \"movies\" (\"movie_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);",
+        "logical_plan": "1. SELECT movie_title, movie_release_year, director_name\n2. FROM movies\n3. WHERE movie_popularity = (SELECT MAX(movie_popularity) FROM movies)\n4. [[ ## completed ## ]]"
+      },
+      {
+        "augmented": true,
+        "question": "What is the average rating for movie titled 'When Will I Be Loved'?\n\nEvidence: average rating = DIVIDE((SUM(rating_score where movie_title = 'When Will I Be Loved')), COUNT(rating_score));",
+        "schema_ddl": "CREATE TABLE \"movies\" (\n  \"movie_id\" INTEGER NOT NULL,\n  \"movie_title\" TEXT,\n  \"movie_release_year\" INTEGER,\n  \"movie_url\" TEXT,\n  \"movie_title_language\" TEXT,\n  \"movie_popularity\" INTEGER,\n  \"movie_image_url\" TEXT,\n  \"director_id\" TEXT,\n  \"director_name\" TEXT,\n  \"director_url\" TEXT,\n  PRIMARY KEY (\"movie_id\")\n);\n\nCREATE TABLE \"ratings\" (\n  \"movie_id\" INTEGER,\n  \"rating_id\" INTEGER,\n  \"rating_url\" TEXT,\n  \"rating_score\" INTEGER,\n  \"rating_timestamp_utc\" TEXT,\n  \"critic\" TEXT,\n  \"critic_likes\" INTEGER,\n  \"critic_comments\" INTEGER,\n  \"user_id\" INTEGER,\n  \"user_trialist\" INTEGER,\n  \"user_subscriber\" INTEGER,\n  \"user_eligible_for_trial\" INTEGER,\n  \"user_has_payment_method\" INTEGER,\n  FOREIGN KEY (\"rating_id\") REFERENCES \"ratings\" (\"rating_id\") ON UPDATE NO ACTION ON DELETE NO ACTION,\n  FOREIGN KEY (\"movie_id\") REFERENCES \"movies\" (\"movie_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);",
+        "logical_plan": "SELECT AVG(T2.rating_score) AS average_rating\nFROM movies AS T1\nJOIN ratings AS T2 ON T1.movie_id = T2.movie_id\nWHERE T1.movie_title = 'When Will I Be Loved'"
+      },
+      {
+        "augmented": true,
+        "question": "Who is the director of the movie Sex, Drink and Bloodshed?\n\nEvidence: Sex, Drink and Bloodshed refers to movie title = 'Sex, Drink and Bloodshed';",
+        "schema_ddl": "CREATE TABLE \"movies\" (\n  \"movie_id\" INTEGER NOT NULL,\n  \"movie_title\" TEXT,\n  \"movie_release_year\" INTEGER,\n  \"movie_url\" TEXT,\n  \"movie_title_language\" TEXT,\n  \"movie_popularity\" INTEGER,\n  \"movie_image_url\" TEXT,\n  \"director_id\" TEXT,\n  \"director_name\" TEXT,\n  \"director_url\" TEXT,\n  PRIMARY KEY (\"movie_id\")\n);\n\nCREATE TABLE \"ratings\" (\n  \"movie_id\" INTEGER,\n  \"rating_id\" INTEGER,\n  \"rating_url\" TEXT,\n  \"rating_score\" INTEGER,\n  \"rating_timestamp_utc\" TEXT,\n  \"critic\" TEXT,\n  \"critic_likes\" INTEGER,\n  \"critic_comments\" INTEGER,\n  \"user_id\" INTEGER,\n  \"user_trialist\" INTEGER,\n  \"user_subscriber\" INTEGER,\n  \"user_eligible_for_trial\" INTEGER,\n  \"user_has_payment_method\" INTEGER,\n  FOREIGN KEY (\"rating_id\") REFERENCES \"ratings\" (\"rating_id\") ON UPDATE NO ACTION ON DELETE NO ACTION,\n  FOREIGN KEY (\"movie_id\") REFERENCES \"movies\" (\"movie_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);",
+        "logical_plan": "SELECT T1.director_name FROM movies AS T1 WHERE T1.movie_title = 'Sex, Drink and Bloodshed'"
+      },
+      {
+        "augmented": true,
+        "question": "What is the name of the most followed list?\n\nEvidence: most followed list refers to MAX(list_followers);",
+        "schema_ddl": "CREATE TABLE \"lists\" (\n  \"user_id\" INTEGER,\n  \"list_id\" INTEGER NOT NULL,\n  \"list_title\" TEXT,\n  \"list_movie_number\" INTEGER,\n  \"list_update_timestamp_utc\" TEXT,\n  \"list_creation_timestamp_utc\" TEXT,\n  \"list_followers\" INTEGER,\n  \"list_url\" TEXT,\n  \"list_comments\" INTEGER,\n  \"list_description\" TEXT,\n  \"list_cover_image_url\" TEXT,\n  \"list_first_image_url\" TEXT,\n  \"list_second_image_url\" TEXT,\n  \"list_third_image_url\" TEXT,\n  PRIMARY KEY (\"list_id\"),\n  FOREIGN KEY (\"user_id\") REFERENCES \"lists_users\" (\"user_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);\n\nCREATE TABLE \"lists_users\" (\n  \"user_id\" INTEGER NOT NULL,\n  \"list_id\" INTEGER NOT NULL,\n  \"list_update_date_utc\" TEXT,\n  \"list_creation_date_utc\" TEXT,\n  \"user_trialist\" INTEGER,\n  \"user_subscriber\" INTEGER,\n  \"user_avatar_image_url\" TEXT,\n  \"user_cover_image_url\" TEXT,\n  \"user_eligible_for_trial\" TEXT,\n  \"user_has_payment_method\" TEXT,\n  PRIMARY KEY (\"user_id\", \"list_id\"),\n  FOREIGN KEY (\"user_id\") REFERENCES \"lists\" (\"user_id\") ON UPDATE NO ACTION ON DELETE NO ACTION,\n  FOREIGN KEY (\"list_id\") REFERENCES \"lists\" (\"list_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);",
+        "logical_plan": "SELECT list_title FROM lists WHERE list_followers = (SELECT MAX(list_followers) FROM lists)"
+      }
+    ],
+    "signature": {
+      "instructions": "Plan a SQLite query using only the supplied schema and question.\n\nIdentify the relevant tables, projected columns, joins, filters, grouping,\naggregation, ordering and limits. Use any evidence included in the question.",
+      "fields": [
+        {
+          "prefix": "Question:",
+          "description": "User question and any supporting evidence."
+        },
+        {
+          "prefix": "Schema Ddl:",
+          "description": "Available SQLite table and column definitions."
+        },
+        {
+          "prefix": "Logical Plan:",
+          "description": "A concise, complete execution plan."
+        }
+      ]
+    },
+    "lm": null
+  },
+  "generator": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "question": "State the most popular movie? When was it released and who is the director for the movie?\n\nEvidence: most popular movie refers to MAX(movie_popularity); when it was released refers to movie_release_year; director for the movie refers to director_name;\nIteration 1 of 5; 5 decisions remaining. Use action=probe for exploration or action=final_answer with the final <solution> SQL. On the last iteration submit final_answer.",
+        "schema_ddl": "CREATE TABLE \"movies\" (\n  \"movie_id\" INTEGER NOT NULL,\n  \"movie_title\" TEXT,\n  \"movie_release_year\" INTEGER,\n  \"movie_url\" TEXT,\n  \"movie_title_language\" TEXT,\n  \"movie_popularity\" INTEGER,\n  \"movie_image_url\" TEXT,\n  \"director_id\" TEXT,\n  \"director_name\" TEXT,\n  \"director_url\" TEXT,\n  PRIMARY KEY (\"movie_id\")\n);\n\nCREATE TABLE \"ratings\" (\n  \"movie_id\" INTEGER,\n  \"rating_id\" INTEGER,\n  \"rating_url\" TEXT,\n  \"rating_score\" INTEGER,\n  \"rating_timestamp_utc\" TEXT,\n  \"critic\" TEXT,\n  \"critic_likes\" INTEGER,\n  \"critic_comments\" INTEGER,\n  \"user_id\" INTEGER,\n  \"user_trialist\" INTEGER,\n  \"user_subscriber\" INTEGER,\n  \"user_eligible_for_trial\" INTEGER,\n  \"user_has_payment_method\" INTEGER,\n  FOREIGN KEY (\"rating_id\") REFERENCES \"ratings\" (\"rating_id\") ON UPDATE NO ACTION ON DELETE NO ACTION,\n  FOREIGN KEY (\"movie_id\") REFERENCES \"movies\" (\"movie_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);",
+        "logical_plan": "1. SELECT movie_title, movie_release_year, director_name\n2. FROM movies\n3. WHERE movie_popularity = (SELECT MAX(movie_popularity) FROM movies)\n4. [[ ## completed ## ]]",
+        "action": "probe",
+        "rationale": "To find the most popular movie, we need to select the movie title, release year, and director name where the movie popularity is the maximum. We can achieve this by using a subquery to get the maximum popularity and then selecting the corresponding movie details.",
+        "sql_query": "SELECT movie_title, movie_release_year, director_name\nFROM movies\nWHERE movie_popularity = (SELECT MAX(movie_popularity) FROM movies)"
+      },
+      {
+        "augmented": true,
+        "question": "What is the average rating for movie titled 'When Will I Be Loved'?\n\nEvidence: average rating = DIVIDE((SUM(rating_score where movie_title = 'When Will I Be Loved')), COUNT(rating_score));\nIteration 1 of 5; 5 decisions remaining. Use action=probe for exploration or action=final_answer with the final <solution> SQL. On the last iteration submit final_answer.",
+        "schema_ddl": "CREATE TABLE \"movies\" (\n  \"movie_id\" INTEGER NOT NULL,\n  \"movie_title\" TEXT,\n  \"movie_release_year\" INTEGER,\n  \"movie_url\" TEXT,\n  \"movie_title_language\" TEXT,\n  \"movie_popularity\" INTEGER,\n  \"movie_image_url\" TEXT,\n  \"director_id\" TEXT,\n  \"director_name\" TEXT,\n  \"director_url\" TEXT,\n  PRIMARY KEY (\"movie_id\")\n);\n\nCREATE TABLE \"ratings\" (\n  \"movie_id\" INTEGER,\n  \"rating_id\" INTEGER,\n  \"rating_url\" TEXT,\n  \"rating_score\" INTEGER,\n  \"rating_timestamp_utc\" TEXT,\n  \"critic\" TEXT,\n  \"critic_likes\" INTEGER,\n  \"critic_comments\" INTEGER,\n  \"user_id\" INTEGER,\n  \"user_trialist\" INTEGER,\n  \"user_subscriber\" INTEGER,\n  \"user_eligible_for_trial\" INTEGER,\n  \"user_has_payment_method\" INTEGER,\n  FOREIGN KEY (\"rating_id\") REFERENCES \"ratings\" (\"rating_id\") ON UPDATE NO ACTION ON DELETE NO ACTION,\n  FOREIGN KEY (\"movie_id\") REFERENCES \"movies\" (\"movie_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);",
+        "logical_plan": "SELECT AVG(T2.rating_score) AS average_rating\nFROM movies AS T1\nJOIN ratings AS T2 ON T1.movie_id = T2.movie_id\nWHERE T1.movie_title = 'When Will I Be Loved'",
+        "action": "probe",
+        "rationale": "The logical plan is correct, but we need to ensure that the query will return a valid result. We should probe to see if there are any issues with the data or if the query needs further refinement.",
+        "sql_query": "SELECT AVG(T2.rating_score) AS average_rating\nFROM movies AS T1\nJOIN ratings AS T2 ON T1.movie_id = T2.movie_id\nWHERE T1.movie_title = 'When Will I Be Loved'"
+      },
+      {
+        "augmented": true,
+        "question": "Who is the director of the movie Sex, Drink and Bloodshed?\n\nEvidence: Sex, Drink and Bloodshed refers to movie title = 'Sex, Drink and Bloodshed';\n\nPrevious SQL attempts: [{\"action\": \"probe\", \"rationale\": \"The logical plan suggests selecting the director's name for the movie 'Sex, Drink and Bloodshed'. We need to execute this query to find the director.\", \"sql\": \"SELECT T1.director_name FROM movies AS T1 WHERE T1.movie_title = 'Sex, Drink and Bloodshed'\", \"observation\": \"{\\\"is_valid\\\":true,\\\"error_message\\\":null,\\\"row_count\\\":1,\\\"sample_rows\\\":[[\\\"Zvonimir Juri\\u0107, Boris T. Matic, Antonio Nui\\u0107\\\"]],\\\"columns\\\":[\\\"director_name\\\"]}\"}]\nLatest execution observation: {\"is_valid\":true,\"error_message\":null,\"row_count\":1,\"sample_rows\":[[\"Zvonimir Jurić, Boris T. Matic, Antonio Nuić\"]],\"columns\":[\"director_name\"]}\nUse these <observation> records to refine the plan and answer the original question.\nIteration 2 of 5; 4 decisions remaining. Use action=probe for exploration or action=final_answer with the final <solution> SQL. On the last iteration submit final_answer.",
+        "schema_ddl": "CREATE TABLE \"movies\" (\n  \"movie_id\" INTEGER NOT NULL,\n  \"movie_title\" TEXT,\n  \"movie_release_year\" INTEGER,\n  \"movie_url\" TEXT,\n  \"movie_title_language\" TEXT,\n  \"movie_popularity\" INTEGER,\n  \"movie_image_url\" TEXT,\n  \"director_id\" TEXT,\n  \"director_name\" TEXT,\n  \"director_url\" TEXT,\n  PRIMARY KEY (\"movie_id\")\n);\n\nCREATE TABLE \"ratings\" (\n  \"movie_id\" INTEGER,\n  \"rating_id\" INTEGER,\n  \"rating_url\" TEXT,\n  \"rating_score\" INTEGER,\n  \"rating_timestamp_utc\" TEXT,\n  \"critic\" TEXT,\n  \"critic_likes\" INTEGER,\n  \"critic_comments\" INTEGER,\n  \"user_id\" INTEGER,\n  \"user_trialist\" INTEGER,\n  \"user_subscriber\" INTEGER,\n  \"user_eligible_for_trial\" INTEGER,\n  \"user_has_payment_method\" INTEGER,\n  FOREIGN KEY (\"rating_id\") REFERENCES \"ratings\" (\"rating_id\") ON UPDATE NO ACTION ON DELETE NO ACTION,\n  FOREIGN KEY (\"movie_id\") REFERENCES \"movies\" (\"movie_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);",
+        "logical_plan": "SELECT T1.director_name FROM movies AS T1 WHERE T1.movie_title = 'Sex, Drink and Bloodshed'",
+        "action": "final_answer",
+        "rationale": "The logical plan and schema confirm that we need to select the director's name for the movie 'Sex, Drink and Bloodshed'. The previous probe executed successfully and returned the correct director names.",
+        "sql_query": "SELECT T1.director_name FROM movies AS T1 WHERE T1.movie_title = 'Sex, Drink and Bloodshed'"
+      },
+      {
+        "augmented": true,
+        "question": "What is the name of the most followed list?\n\nEvidence: most followed list refers to MAX(list_followers);\n\nPrevious SQL attempts: [{\"action\": \"probe\", \"rationale\": \"To find the name of the most followed list, we need to select the list title where the number of followers is maximum. This can be achieved by selecting the list_title from the lists table where the list_followers column has the maximum value.\", \"sql\": \"SELECT list_title FROM lists WHERE list_followers = (SELECT MAX(list_followers) FROM lists)\", \"observation\": \"{\\\"is_valid\\\":true,\\\"error_message\\\":null,\\\"row_count\\\":1,\\\"sample_rows\\\":[[\\\"100 DIRECTORS' ESSENTIAL FILMS\\\"]],\\\"columns\\\":[\\\"list_title\\\"]}\"}]\nLatest execution observation: {\"is_valid\":true,\"error_message\":null,\"row_count\":1,\"sample_rows\":[[\"100 DIRECTORS' ESSENTIAL FILMS\"]],\"columns\":[\"list_title\"]}\nUse these <observation> records to refine the plan and answer the original question.\nIteration 2 of 5; 4 decisions remaining. Use action=probe for exploration or action=final_answer with the final <solution> SQL. On the last iteration submit final_answer.",
+        "schema_ddl": "CREATE TABLE \"lists\" (\n  \"user_id\" INTEGER,\n  \"list_id\" INTEGER NOT NULL,\n  \"list_title\" TEXT,\n  \"list_movie_number\" INTEGER,\n  \"list_update_timestamp_utc\" TEXT,\n  \"list_creation_timestamp_utc\" TEXT,\n  \"list_followers\" INTEGER,\n  \"list_url\" TEXT,\n  \"list_comments\" INTEGER,\n  \"list_description\" TEXT,\n  \"list_cover_image_url\" TEXT,\n  \"list_first_image_url\" TEXT,\n  \"list_second_image_url\" TEXT,\n  \"list_third_image_url\" TEXT,\n  PRIMARY KEY (\"list_id\"),\n  FOREIGN KEY (\"user_id\") REFERENCES \"lists_users\" (\"user_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);\n\nCREATE TABLE \"lists_users\" (\n  \"user_id\" INTEGER NOT NULL,\n  \"list_id\" INTEGER NOT NULL,\n  \"list_update_date_utc\" TEXT,\n  \"list_creation_date_utc\" TEXT,\n  \"user_trialist\" INTEGER,\n  \"user_subscriber\" INTEGER,\n  \"user_avatar_image_url\" TEXT,\n  \"user_cover_image_url\" TEXT,\n  \"user_eligible_for_trial\" TEXT,\n  \"user_has_payment_method\" TEXT,\n  PRIMARY KEY (\"user_id\", \"list_id\"),\n  FOREIGN KEY (\"user_id\") REFERENCES \"lists\" (\"user_id\") ON UPDATE NO ACTION ON DELETE NO ACTION,\n  FOREIGN KEY (\"list_id\") REFERENCES \"lists\" (\"list_id\") ON UPDATE NO ACTION ON DELETE NO ACTION\n);",
+        "logical_plan": "SELECT list_title FROM lists WHERE list_followers = (SELECT MAX(list_followers) FROM lists)",
+        "action": "final_answer",
+        "rationale": "The previous probe executed successfully and returned the correct result. The SQL query correctly identifies the list title with the maximum number of followers.",
+        "sql_query": "SELECT list_title FROM lists WHERE list_followers = (SELECT MAX(list_followers) FROM lists)"
+      }
+    ],
+    "signature": {
+      "instructions": "Choose one read-only SQLite action, including CTEs when needed.\n\nFollow the logical plan and schema. If the question includes observations\nfrom previous actions, use the rows or repair errors without changing the\nuser's intent. Set action=probe to execute exploratory SQL and continue with\nits observation. Set action=final_answer ONLY to submit the final solution.\nA successful probe does not finish the task. The last available iteration\nmust submit the final answer. Return executable SQL without Markdown fences.",
+      "fields": [
+        {
+          "prefix": "Question:",
+          "description": "Question, evidence, and any execution feedback."
+        },
+        {
+          "prefix": "Schema Ddl:",
+          "description": "Available SQLite table and column definitions."
+        },
+        {
+          "prefix": "Logical Plan:",
+          "description": "Plan produced by the decomposer."
+        },
+        {
+          "prefix": "Action:",
+          "description": "Explicit exploratory action or final submission."
+        },
+        {
+          "prefix": "Rationale:",
+          "description": "Concise justification using the question and observations."
+        },
+        {
+          "prefix": "Sql Query:",
+          "description": "Executable SQLite query; the solution when action=final_answer."
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.12",
+      "dspy": "3.3.1",
+      "cloudpickle": "3.1"
+    }
+  },
+  "mars_generator_manifest": {
+    "training_source": "data\\train.json",
+    "training_examples": 64,
+    "training_sha256": "8e42ba303118886c1ee82b1948b894d41ed68c3ff103671a03d4ba08781781f9",
+    "model_name": "openrouter/qwen/qwen-2.5-7b-instruct",
+    "version": 2,
+    "action_contract": "probe_final_answer",
+    "max_iterations": 5,
+    "compilation_metrics": {
+      "stages": [
+        {
+          "stage": "compilation",
+          "turn": 0,
+          "prompt_tokens": 50883,
+          "completion_tokens": 5402,
+          "total_tokens": 56285,
+          "cost_usd": 0.0061687,
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "lm_call_count": 49,
+          "llm_latency_seconds": 58.18153409980005,
+          "latency_seconds": 519.5196338999667,
+          "error": null,
+          "calls": [
+            {
+              "response_id": "gen-1792180703-TtlxTM28mED7a8y2IV78",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 517,
+              "completion_tokens": 77,
+              "total_tokens": 594,
+              "cost_usd": 6.71e-05,
+              "latency_seconds": 7.504688999964856
+            },
+            {
+              "response_id": "gen-1792180705-bwydr7Lutcn7WmQFnlu1",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 838,
+              "completion_tokens": 137,
+              "total_tokens": 975,
+              "cost_usd": 0.0001112,
+              "latency_seconds": 1.4876681999885477
+            },
+            {
+              "response_id": "gen-1792180736-g43hyzoWZNlFPjHhgn71",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1052,
+              "completion_tokens": 145,
+              "total_tokens": 1197,
+              "cost_usd": 0.0001342,
+              "latency_seconds": 1.699912799987942
+            },
+            {
+              "response_id": "gen-1792180738-pikXV1ikM43Rt2COLnHh",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1234,
+              "completion_tokens": 153,
+              "total_tokens": 1387,
+              "cost_usd": 0.000154,
+              "latency_seconds": 1.5470118000521325
+            },
+            {
+              "response_id": "gen-1792180749-rSqDW3zHTf6l8G6jMvl8",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 3171,
+              "completion_tokens": 138,
+              "total_tokens": 3309,
+              "cost_usd": 0.0003447,
+              "latency_seconds": 1.6791716000298038
+            },
+            {
+              "response_id": "gen-1792180768-0tcLC5wZqEBEHpJA69KK",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 521,
+              "completion_tokens": 49,
+              "total_tokens": 570,
+              "cost_usd": 6.19e-05,
+              "latency_seconds": 0.5470990000176243
+            },
+            {
+              "response_id": "gen-1792180769-Xn3iILSEGWKTervRBfQf",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 820,
+              "completion_tokens": 104,
+              "total_tokens": 924,
+              "cost_usd": 0.0001028,
+              "latency_seconds": 0.8554872999666259
+            },
+            {
+              "response_id": "gen-1792180770-DdcVzFLHs23RlafBYNf2",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1044,
+              "completion_tokens": 99,
+              "total_tokens": 1143,
+              "cost_usd": 0.0001242,
+              "latency_seconds": 0.7386946000042371
+            },
+            {
+              "response_id": "gen-1792180771-o46T2u47eU90q0GvKAkA",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 509,
+              "completion_tokens": 38,
+              "total_tokens": 547,
+              "cost_usd": 5.85e-05,
+              "latency_seconds": 0.4401771000120789
+            },
+            {
+              "response_id": "gen-1792180772-y9ekUYJIdYuLpwlQJPtQ",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 791,
+              "completion_tokens": 110,
+              "total_tokens": 901,
+              "cost_usd": 0.0001011,
+              "latency_seconds": 0.8059515999630094
+            },
+            {
+              "response_id": "gen-1792180773-r5u0eAbBXeMDvIDJg7rF",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1254,
+              "completion_tokens": 229,
+              "total_tokens": 1483,
+              "cost_usd": 0.0001712,
+              "latency_seconds": 1.637938399973791
+            },
+            {
+              "response_id": "gen-1792180775-iftATTQfJFUK6DdS8Av5",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 495,
+              "completion_tokens": 56,
+              "total_tokens": 551,
+              "cost_usd": 6.07e-05,
+              "latency_seconds": 0.523174999980256
+            },
+            {
+              "response_id": "gen-1792180776-n0ZsACIIJtKCDHHevAr2",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 795,
+              "completion_tokens": 130,
+              "total_tokens": 925,
+              "cost_usd": 0.0001055,
+              "latency_seconds": 0.9691795000107959
+            },
+            {
+              "response_id": "gen-1792180806-lRnGw7a5FgKWrP9RzPIk",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1011,
+              "completion_tokens": 96,
+              "total_tokens": 1107,
+              "cost_usd": 0.0001203,
+              "latency_seconds": 0.9109234999632463
+            },
+            {
+              "response_id": "gen-1792180837-D7gPjakKpiMNg1PrlQTH",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 513,
+              "completion_tokens": 58,
+              "total_tokens": 571,
+              "cost_usd": 6.29e-05,
+              "latency_seconds": 0.9404200999997556
+            },
+            {
+              "response_id": "gen-1792180838-q8O1wHc7NYKFTA6n5OOj",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 815,
+              "completion_tokens": 156,
+              "total_tokens": 971,
+              "cost_usd": 0.0001127,
+              "latency_seconds": 1.519151900021825
+            },
+            {
+              "response_id": "gen-1792180850-uyjOxsun27IzhAwVYSvO",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1081,
+              "completion_tokens": 132,
+              "total_tokens": 1213,
+              "cost_usd": 0.0001345,
+              "latency_seconds": 1.1831346999970265
+            },
+            {
+              "response_id": "gen-1792180877-MstgkLxgM87u1pS5lwI3",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 515,
+              "completion_tokens": 58,
+              "total_tokens": 573,
+              "cost_usd": 6.31e-05,
+              "latency_seconds": 0.9829063999932259
+            },
+            {
+              "response_id": "gen-1792180878-Rr0SDn3R4EGzLmU2xfSl",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 817,
+              "completion_tokens": 111,
+              "total_tokens": 928,
+              "cost_usd": 0.0001039,
+              "latency_seconds": 1.0588431000360288
+            },
+            {
+              "response_id": "gen-1792180888-K6FtZ0wDtyYPVJqZOjIg",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1042,
+              "completion_tokens": 111,
+              "total_tokens": 1153,
+              "cost_usd": 0.0001264,
+              "latency_seconds": 1.1044212999986485
+            },
+            {
+              "response_id": "gen-1792180915-j9zpvwwMlPOLHxpZ8X3G",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 983,
+              "completion_tokens": 111,
+              "total_tokens": 1094,
+              "cost_usd": 0.0001205,
+              "latency_seconds": 0.9723368000122719
+            },
+            {
+              "response_id": "gen-1792180916-Y9PS2qLuwgGUpgQwcyre",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1338,
+              "completion_tokens": 194,
+              "total_tokens": 1532,
+              "cost_usd": 0.0001726,
+              "latency_seconds": 1.5361578000010923
+            },
+            {
+              "response_id": "gen-1792180961-Uc9ljw0SJJ53IHLh9L42",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 989,
+              "completion_tokens": 46,
+              "total_tokens": 1035,
+              "cost_usd": 0.0001081,
+              "latency_seconds": 0.7326952000148594
+            },
+            {
+              "response_id": "gen-1792180962-79v8JNVTHjxNFuPCE5bQ",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1279,
+              "completion_tokens": 106,
+              "total_tokens": 1385,
+              "cost_usd": 0.0001491,
+              "latency_seconds": 0.9554856999893673
+            },
+            {
+              "response_id": "gen-1792180978-C53FSsUyID2wOwzovd8G",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 995,
+              "completion_tokens": 79,
+              "total_tokens": 1074,
+              "cost_usd": 0.0001153,
+              "latency_seconds": 0.7990007000043988
+            },
+            {
+              "response_id": "gen-1792180979-UI2E8eVqDAyN3xW75bRJ",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1318,
+              "completion_tokens": 145,
+              "total_tokens": 1463,
+              "cost_usd": 0.0001608,
+              "latency_seconds": 1.396658799960278
+            },
+            {
+              "response_id": "gen-1792180985-pN9DhVndktjBRLbA0Q5V",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 2170,
+              "completion_tokens": 121,
+              "total_tokens": 2291,
+              "cost_usd": 0.0002412,
+              "latency_seconds": 1.09877390001202
+            },
+            {
+              "response_id": "gen-1792181004-ofgZg1mh3dis87BHGtZM",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 835,
+              "completion_tokens": 82,
+              "total_tokens": 917,
+              "cost_usd": 9.99e-05,
+              "latency_seconds": 0.8277555999811739
+            },
+            {
+              "response_id": "gen-1792181005-MmlfmBIpDh5ICiW9gSo9",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1161,
+              "completion_tokens": 142,
+              "total_tokens": 1303,
+              "cost_usd": 0.0001445,
+              "latency_seconds": 1.174042400030885
+            },
+            {
+              "response_id": "gen-1792181011-yp2tygJcsvKPH6hSJYoC",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1397,
+              "completion_tokens": 129,
+              "total_tokens": 1526,
+              "cost_usd": 0.0001655,
+              "latency_seconds": 1.0593714999849908
+            },
+            {
+              "response_id": "gen-1792181012-7pZ2mCE8mPn0G4CC3EE7",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 858,
+              "completion_tokens": 73,
+              "total_tokens": 931,
+              "cost_usd": 0.0001004,
+              "latency_seconds": 0.7515246999682859
+            },
+            {
+              "response_id": "gen-1792181013-Fi8JClXyBEaDb3f9qr3T",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1175,
+              "completion_tokens": 158,
+              "total_tokens": 1333,
+              "cost_usd": 0.0001491,
+              "latency_seconds": 1.1476023999857716
+            },
+            {
+              "response_id": "gen-1792181042-k8rptttCqVlKxSxQzo3f",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 2336,
+              "completion_tokens": 165,
+              "total_tokens": 2501,
+              "cost_usd": 0.0002666,
+              "latency_seconds": 1.718414299946744
+            },
+            {
+              "response_id": "gen-1792181110-qoJY631TJk0BLWNZlvZv",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 528,
+              "completion_tokens": 64,
+              "total_tokens": 592,
+              "cost_usd": 6.56e-05,
+              "latency_seconds": 0.6885857000015676
+            },
+            {
+              "response_id": "gen-1792181110-hCcnCsKDPsG5L92uSe70",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 836,
+              "completion_tokens": 139,
+              "total_tokens": 975,
+              "cost_usd": 0.0001114,
+              "latency_seconds": 1.1693042000406422
+            },
+            {
+              "response_id": "gen-1792181131-oyPRN0LCNlahgjUrzSdv",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1779,
+              "completion_tokens": 137,
+              "total_tokens": 1916,
+              "cost_usd": 0.0002053,
+              "latency_seconds": 1.3462654000031762
+            },
+            {
+              "response_id": "gen-1792181171-5Gayp6z64o9aU7VWaHsK",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 516,
+              "completion_tokens": 64,
+              "total_tokens": 580,
+              "cost_usd": 6.44e-05,
+              "latency_seconds": 0.9562204999965616
+            },
+            {
+              "response_id": "gen-1792181172-PEolHcxQxdnwctiukb5d",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 824,
+              "completion_tokens": 136,
+              "total_tokens": 960,
+              "cost_usd": 0.0001096,
+              "latency_seconds": 1.2825200000079349
+            },
+            {
+              "response_id": "gen-1792181180-uBTDTfoDsJFrteRHHuaR",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 3199,
+              "completion_tokens": 206,
+              "total_tokens": 3405,
+              "cost_usd": 0.0003611,
+              "latency_seconds": 1.940399700019043
+            },
+            {
+              "response_id": "gen-1792181181-ruqSgC5WabEvEyliaa5m",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 533,
+              "completion_tokens": 138,
+              "total_tokens": 671,
+              "cost_usd": 8.09e-05,
+              "latency_seconds": 1.036854499951005
+            },
+            {
+              "response_id": "gen-1792181183-fkayTfvaYxiyLduMzQtu",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 915,
+              "completion_tokens": 164,
+              "total_tokens": 1079,
+              "cost_usd": 0.0001243,
+              "latency_seconds": 1.30336169997463
+            },
+            {
+              "response_id": "gen-1792181206-FDhM6ct5az6LXwQF0Aw8",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 535,
+              "completion_tokens": 73,
+              "total_tokens": 608,
+              "cost_usd": 6.81e-05,
+              "latency_seconds": 0.7981670000008307
+            },
+            {
+              "response_id": "gen-1792181207-51Jve3wfxTf9SGDHzB8d",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 852,
+              "completion_tokens": 142,
+              "total_tokens": 994,
+              "cost_usd": 0.0001136,
+              "latency_seconds": 1.2283473999705166
+            },
+            {
+              "response_id": "gen-1792181208-GIA0tWs0Sm3cgVYW3Qv5",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 506,
+              "completion_tokens": 37,
+              "total_tokens": 543,
+              "cost_usd": 5.8e-05,
+              "latency_seconds": 0.4400749999913387
+            },
+            {
+              "response_id": "gen-1792181208-PH5Oykeo7dPth9LW1jT9",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 787,
+              "completion_tokens": 80,
+              "total_tokens": 867,
+              "cost_usd": 9.47e-05,
+              "latency_seconds": 0.8858391999965534
+            },
+            {
+              "response_id": "gen-1792181209-p6FJgqKNXiZvRXJQOxkG",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 989,
+              "completion_tokens": 88,
+              "total_tokens": 1077,
+              "cost_usd": 0.0001165,
+              "latency_seconds": 0.7732549000065774
+            },
+            {
+              "response_id": "gen-1792181210-TIgJq6kw8p5PkTOEjvbW",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 556,
+              "completion_tokens": 32,
+              "total_tokens": 588,
+              "cost_usd": 6.2e-05,
+              "latency_seconds": 0.5405493999714963
+            },
+            {
+              "response_id": "gen-1792181211-orNwN83gPHpztnLbKZJv",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 832,
+              "completion_tokens": 93,
+              "total_tokens": 925,
+              "cost_usd": 0.0001018,
+              "latency_seconds": 0.8416098000016063
+            },
+            {
+              "response_id": "gen-1792181213-JmMLY4IxryF91xdaTkQI",
+              "model": "qwen/qwen-2.5-7b-instruct",
+              "prompt_tokens": 1027,
+              "completion_tokens": 71,
+              "total_tokens": 1098,
+              "cost_usd": 0.0001169,
+              "latency_seconds": 0.6444030000129715
+            }
+          ]
+        }
+      ],
+      "sql_attempts": 0,
+      "self_correction_cycles": 0,
+      "lm_call_count": 49,
+      "llm_latency_seconds": 58.18153409980005,
+      "latency_seconds": 519.5196338999667,
+      "prompt_tokens": 50883,
+      "observed_prompt_tokens": 50883,
+      "completion_tokens": 5402,
+      "observed_completion_tokens": 5402,
+      "total_tokens": 56285,
+      "observed_total_tokens": 56285,
+      "cost_usd": 0.0061687,
+      "observed_cost_usd": 0.0061687,
+      "accounting_complete": true
+    }
+  }
+}

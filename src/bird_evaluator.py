@@ -12,13 +12,18 @@ Reference: https://github.com/bird-bench/mini_dev/blob/main/evaluation/evaluatio
 """
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from datetime import datetime, timezone
+import hashlib
+from importlib.metadata import PackageNotFoundError, version
 import json
 import logging
 import math
 import sqlite3
 from contextlib import closing
 from pathlib import Path
-from time import monotonic
+from time import monotonic, perf_counter
 from typing import Any
 
 from src.agent_state import AgentState
@@ -26,6 +31,7 @@ from src.graph_pruner import DatabaseGraphPruner
 from src.sql_agent_graph import build_sql_graph
 
 BIRD_SEPARATOR = "\t----- bird -----\t"
+FORMAL_MODEL = "openrouter/qwen/qwen-2.5-7b-instruct"
 logger = logging.getLogger(__name__)
 
 
@@ -61,7 +67,7 @@ def _database_path(db_dir: str, db_id: str) -> Path:
     path = (root / db_id / f"{db_id}.sqlite").resolve()
     if not path.is_relative_to(root):
         raise ValueError("Database path must stay inside db_dir")
-    # The pruner opens SQLite normally, which would otherwise create missing DBs.
+    # Validate before pruning and model initialization.
     if not path.is_file():
         raise FileNotFoundError(f"Database not found: {path}")
     return path
@@ -72,22 +78,116 @@ def run_bird_evaluation(
     db_dir: str,
     output_path: str,
     limit: int | None = None,
+    *,
+    metrics_path: str | None = None,
+    num_candidates: int = 1,
+    selection_mode: str = "self_consistency",
+    max_turns: int = 5,
+    max_workers: int = 8,
+    temperature: float = 0.8,
+    top_p: float = 0.7,
+    seed: int = 0,
+    prompt_mode: str = "uncompiled_dspy",
+    compiled_model_path: str | None = None,
+    verifier_path: str | None = None,
+    verification_samples: int = 1,
+    execution_timeout: float = 30.0,
+    verbose: bool = False,
 ):
-    """Prune and generate queries, saving BIRD-formatted predictions in order.
+    """Run independent trajectories, select without labels, then measure EX.
 
-    An item failure or a run without final_sql emits SELECT 1; as specified by
-    the harness contract. Gold SQL is never included in the graph's input.
-    A limit of zero writes an empty prediction object without building a graph.
+    The library default is one trajectory for live integration checks. Formal
+    ``run_ablation.py`` runs eight in parallel. Missing final answers are JSON
+    null, never executable placeholders. The DSPy selection condition also
+    saves self-consistency predictions from the SAME candidate pool.
     """
+    for name, value in (("num_candidates", num_candidates), ("max_turns", max_turns),
+                        ("max_workers", max_workers), ("verification_samples", verification_samples)):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ValueError(f"{name} must be a positive integer")
+    if selection_mode not in {"self_consistency", "dspy_verifier"}:
+        raise ValueError("Unknown selection_mode")
+    if prompt_mode not in {"uncompiled_dspy", "compiled_dspy", "baseline"}:
+        raise ValueError("Unknown prompt_mode")
+    if not math.isfinite(temperature) or not 0 <= temperature <= 2:
+        raise ValueError("temperature must be between 0 and 2")
+    if not math.isfinite(top_p) or not 0 < top_p <= 1:
+        raise ValueError("top_p must be between 0 (exclusive) and 1")
+    if not math.isfinite(execution_timeout) or execution_timeout <= 0:
+        raise ValueError("execution_timeout must be positive")
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        raise ValueError("seed must be a nonnegative integer")
     data = _load_items(dev_json_path, limit)
-    predictions: dict[str, str] = {}
-    app = build_sql_graph() if data else None
-    pruners: dict[Path, DatabaseGraphPruner] = {}
-
+    destination = Path(output_path)
+    metrics_destination = Path(metrics_path) if metrics_path else destination.with_suffix(".metrics.json")
+    baseline_destination = destination.with_suffix(".self_consistency.json")
+    outputs = [destination.resolve(), metrics_destination.resolve()]
+    if selection_mode == "dspy_verifier":
+        outputs.append(baseline_destination.resolve())
+    protected = {Path(dev_json_path).resolve()}
+    for artifact in (compiled_model_path, verifier_path):
+        if artifact is not None:
+            protected.add(Path(artifact).resolve())
+    database_root = Path(db_dir).resolve()
     for item in data:
+        db_id = item.get("db_id")
+        if isinstance(db_id, str) and db_id and db_id not in {".", ".."} and not any(
+            character in db_id for character in ("/", "\\", ":")
+        ):
+            protected.add((database_root / db_id / f"{db_id}.sqlite").resolve())
+    if len(set(outputs)) != len(outputs) or set(outputs) & protected:
+        raise ValueError("Prediction and metrics outputs must be distinct from datasets, databases and compiled artifacts")
+    predictions: dict[str, str | None] = {}
+    baseline_predictions: dict[str, str | None] = {}
+    query_metrics: list[dict[str, Any]] = []
+    apps = None
+    verifier = None
+    if selection_mode == "dspy_verifier" and data:
+        from src.dspy_verifier import COMPILED_VERIFIER_PATH, load_compiled_verifier
+        verifier_path = str(verifier_path or COMPILED_VERIFIER_PATH)
+        verifier = load_compiled_verifier(verifier_path)
+    if prompt_mode == "compiled_dspy":
+        from src.dspy_modules import COMPILED_MODEL_PATH
+        compiled_model_path = str(compiled_model_path or COMPILED_MODEL_PATH)
+        if data and not Path(compiled_model_path).is_file():
+            raise FileNotFoundError(f"Compile the trajectory program first: {compiled_model_path}")
+    # Include default artifact paths, which may have been resolved after the
+    # initial output validation. Reject collisions before any model calls.
+    for artifact in (compiled_model_path, verifier_path):
+        if artifact is not None and Path(artifact).resolve() in outputs:
+            raise ValueError("Outputs must not overwrite compiled DSPy artifacts")
+    pruners: dict[Path, DatabaseGraphPruner] = {}
+    manifest = {
+        "model_name": FORMAL_MODEL, "cross_model_fallback": False,
+        "num_candidates": num_candidates, "max_turns": max_turns,
+        "max_workers": min(max_workers, num_candidates), "temperature": temperature,
+        "top_p": top_p, "top_k": None, "seed": seed, "prompt_mode": prompt_mode,
+        "selection_mode": selection_mode, "verification_samples": verification_samples,
+        "execution_timeout_seconds": execution_timeout,
+        "ex_timeout_scope": "prediction_and_gold_combined",
+        "dataset_sha256": _file_hash(dev_json_path),
+        "compiled_generator_sha256": _file_hash(compiled_model_path) if data else None,
+        "compiled_verifier_sha256": _file_hash(verifier_path) if data else None,
+        "question_ids": [str(item["question_id"]) for item in data],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "dependencies": _dependency_versions(),
+        "independent_plans": True,
+    }
+
+    for question_index, item in enumerate(data):
         question_id = str(item["question_id"])
         db_id = item.get("db_id", "")
-        sql = "SELECT 1;"
+        started = perf_counter()
+        pruning_latency = None
+        metrics = _unknown_query_metrics()
+        error_message = None
+        sql = None
+        baseline_sql = None
+        candidates = []
+        selection = None
+        baseline_selection = None
+        baseline_metrics = None
+        selection_started = False
         try:
             db_path = _database_path(db_dir, db_id)
             question = item["question"]
@@ -95,7 +195,10 @@ def run_bird_evaluation(
             if db_path not in pruners:
                 pruners[db_path] = DatabaseGraphPruner(str(db_path))
             _, ddl = pruners[db_path].prune(question, evidence)
+            pruning_latency = perf_counter() - started
             state: AgentState = {
+                "question_id": question_id,
+                "db_id": db_id,
                 "question": question,
                 "evidence": evidence,
                 "schema_ddl": ddl,
@@ -105,28 +208,330 @@ def run_bird_evaluation(
                 "observation": None,
                 "history": [],
                 "turn": 0,
-                "max_turns": 3,
+                "max_turns": max_turns,
                 "is_valid": False,
                 "final_sql": None,
             }
-            final_state = app.invoke(state)
-            sql = (final_state.get("final_sql") or "SELECT 1;").strip() or "SELECT 1;"
+            # Construct independently configured programs on the calling thread;
+            # worker threads must never mutate DSPy's global settings.
+            if apps is None:
+                apps = [build_sql_graph(
+                    model_name=FORMAL_MODEL, prompt_mode=prompt_mode,
+                    compiled_model_path=compiled_model_path, temperature=temperature,
+                    top_p=top_p, formal=True, execution_timeout=execution_timeout,
+                    verbose=verbose,
+                ) for _ in range(num_candidates)]
+            states = []
+            for candidate_index in range(num_candidates):
+                candidate_state = deepcopy(state)
+                candidate_state["candidate_index"] = candidate_index
+                candidate_state["rollout_seed"] = seed + question_index * num_candidates + candidate_index
+                states.append(candidate_state)
+            if verbose:
+                print(f"[question {question_id}] initialized {num_candidates} isolated rollouts "
+                      f"(workers={min(max_workers, num_candidates)}, seeds="
+                      f"{[state['rollout_seed'] for state in states]})", flush=True)
+            inference_started = perf_counter()
+            if num_candidates == 1:
+                candidates = [_run_candidate(apps[0], states[0])]
+            else:
+                with ThreadPoolExecutor(max_workers=min(max_workers, num_candidates)) as pool:
+                    # map preserves candidate order despite out-of-order completion.
+                    candidates = list(pool.map(_run_candidate, apps, states))
+            if verbose:
+                print(f"[question {question_id}] final candidate SQL queries:", flush=True)
+                for candidate in candidates:
+                    print(f"  #{candidate['candidate_index'] + 1}: {candidate['final_sql']!r} "
+                          f"turns={candidate['turn']} reason={candidate['termination_reason']} "
+                          f"error={candidate['error']!r}", flush=True)
+            _execute_candidates(candidates, db_path, execution_timeout)
+            baseline_selection = select_self_consistency(candidates)
+            if verbose:
+                print(f"[question {question_id}] self-consistency execution results:", flush=True)
+                for candidate in candidates:
+                    execution = candidate.get("execution") or {}
+                    print(f"  #{candidate['candidate_index'] + 1}: "
+                          f"rows={execution.get('sample_rows')} "
+                          f"row_count={execution.get('row_count')} "
+                          f"truncated={execution.get('truncated', False)} "
+                          f"hash={execution.get('result_hash')} "
+                          f"error={execution.get('error') or candidate.get('error')}", flush=True)
+                print(f"[question {question_id}] vote groups (hash -> zero-based indices): "
+                      f"{json.dumps(baseline_selection['groups'], sort_keys=True)}", flush=True)
+                print(f"[question {question_id}] winner: "
+                      f"{None if baseline_selection['selected_candidate_index'] is None else baseline_selection['selected_candidate_index'] + 1}", flush=True)
+            baseline_sql = _selected_sql(candidates, baseline_selection)
+            baseline_metrics = _aggregate_candidate_metrics(candidates, baseline_selection, perf_counter() - inference_started)
+            baseline_metrics.update({"end_to_end_latency_seconds": perf_counter() - started,
+                                     "fallback_used": not bool(baseline_sql)})
+            if selection_mode == "dspy_verifier":
+                from src.dspy_verifier import select_with_dspy
+                selection_started = True
+                selection = select_with_dspy(
+                    question, evidence, ddl, candidates, verifier=verifier,
+                    verification_samples=verification_samples,
+                )
+            else:
+                selection = baseline_selection
+            sql = _selected_sql(candidates, selection)
+            metrics = _aggregate_candidate_metrics(candidates, selection, perf_counter() - inference_started)
+            if not sql:
+                errors = [candidate["error"] for candidate in candidates if candidate.get("error")]
+                error_message = "; ".join(errors) or "No eligible final answer was selected"
         except Exception as error:
+            # Configuration errors must not masquerade as a dataset-wide model
+            # failure (in particular a stale compiled DSPy signature).
+            if apps is None and isinstance(error, (ValueError, FileNotFoundError)) and pruning_latency is not None:
+                raise
             logger.error("Error on question %s: %s", question_id, error)
-        predictions[question_id] = f"{sql}{BIRD_SEPARATOR}{db_id}"
+            if candidates:
+                selection = selection or {"mode": selection_mode, "selected_candidate_index": None}
+                if getattr(error, "mars_metrics", None):
+                    selection["metrics"] = error.mars_metrics
+                elif selection_started:
+                    selection["metrics"] = _unknown_query_metrics()
+                metrics = _aggregate_candidate_metrics(candidates, selection, perf_counter() - inference_started)
+            else:
+                metrics.update(getattr(error, "mars_metrics", None) or {})
+            error_message = f"{type(error).__name__}: {error}"
+        elapsed = perf_counter() - started
+        metrics.update({
+            "question_id": question_id,
+            "db_id": db_id,
+            "fallback_used": not bool(sql),  # Legacy field: now means failure, not substitute SQL.
+            "generation_failed": not any(candidate.get("final_sql") for candidate in candidates),
+            "selection_failed": bool(candidates) and not bool(sql),
+            "error": error_message,
+            "pruning_latency_seconds": pruning_latency if pruning_latency is not None else elapsed,
+            "end_to_end_latency_seconds": elapsed,
+            "candidates": candidates,
+            "selection": selection,
+            "self_consistency_selection": baseline_selection,
+            "self_consistency_metrics": baseline_metrics,
+        })
+        query_metrics.append(metrics)
+        predictions[question_id] = f"{sql}{BIRD_SEPARATOR}{db_id}" if sql else None
+        baseline_predictions[question_id] = f"{baseline_sql}{BIRD_SEPARATOR}{db_id}" if baseline_sql else None
 
-    destination = Path(output_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", encoding="utf-8") as handle:
         json.dump(predictions, handle, indent=2, ensure_ascii=False)
         handle.write("\n")
+    score = compute_execution_accuracy(dev_json_path, db_dir, output_path, limit, timeout_seconds=execution_timeout)
+    for metrics, result in zip(query_metrics, score["results"]):
+        metrics["execution_correct"] = result["correct"]
+        metrics["execution_error"] = result["error"]
+    report = {
+        "schema_version": 2,
+        "manifest": manifest,
+        "predictions_path": str(destination.resolve()),
+        **score,
+        "queries": query_metrics,
+        "totals": _sum_query_metrics(query_metrics),
+    }
+    if selection_mode == "dspy_verifier":
+        baseline_destination.write_text(json.dumps(baseline_predictions, indent=2), encoding="utf-8")
+        report["self_consistency"] = {
+            "predictions_path": str(baseline_destination.resolve()),
+            "totals": _sum_query_metrics([row.get("self_consistency_metrics") or _unknown_query_metrics()
+                                          for row in query_metrics]),
+            **compute_execution_accuracy(dev_json_path, db_dir, str(baseline_destination), limit,
+                                         timeout_seconds=execution_timeout),
+        }
+    metrics_destination.parent.mkdir(parents=True, exist_ok=True)
+    with metrics_destination.open("w", encoding="utf-8") as handle:
+        json.dump(report, handle, indent=2, ensure_ascii=False, allow_nan=False)
+        handle.write("\n")
     return output_path
 
 
-def _execute_result_set(db_path: Path, sql: str, timeout_seconds: float) -> set[tuple]:
+def _file_hash(path) -> str | None:
+    if path is None:
+        return None
+    with Path(path).open("rb") as handle:
+        return hashlib.file_digest(handle, "sha256").hexdigest()
+
+
+def _dependency_versions():
+    versions = {}
+    for package in ("dspy", "langgraph", "langfuse", "litellm", "networkx", "openai"):
+        try:
+            versions[package] = version(package)
+        except PackageNotFoundError:
+            versions[package] = None
+    return versions
+
+
+def _run_candidate(app, state):
+    """One independent rollout; transport failures cannot cancel sibling rollouts."""
+    metrics = _unknown_query_metrics()
+    final_state = {}
+    error = None
+    started = perf_counter()
+    try:
+        final_state = app.invoke(state)
+        metrics.update(final_state.get("metrics") or {})
+    except Exception as failure:
+        final_state = getattr(failure, "mars_state", None) or {}
+        metrics.update(getattr(failure, "mars_metrics", None) or {})
+        error = f"{type(failure).__name__}: {failure}"
+    sql = (final_state.get("final_sql") or "").strip() or None
+    if sql is None and error is None:
+        error = "Trajectory did not produce an executable explicit final_answer"
+    return {
+        "candidate_index": state["candidate_index"], "rollout_seed": state["rollout_seed"],
+        "final_sql": sql, "history": final_state.get("history", []),
+        "logical_plan": str(final_state.get("plan") or ""),
+        "turn": final_state.get("turn", metrics.get("turn")),
+        "error": error, "metrics": metrics, "wall_latency_seconds": perf_counter() - started,
+        "termination_reason": final_state.get("termination_reason") or (
+            "error" if error else "final_answer"
+        ),
+    }
+
+
+def _result_fingerprint(rows: set[tuple]) -> str:
+    """Stable hash of complete BIRD-equivalent sets, including blobs and NULL.
+
+    Numeric normalization follows Python/SQLite row equality (1 == 1.0).
+    Values are type-tagged so blobs, text and NULL never collide.
+    """
+    def cell(value):
+        if value is None:
+            return ["null"]
+        if isinstance(value, bytes):
+            return ["blob", value.hex()]
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                return ["number", str(value)]
+            numerator, denominator = value.as_integer_ratio()
+            return ["number", str(numerator), str(denominator)]
+        return ["text", value]
+    encoded = sorted(json.dumps([cell(value) for value in row], ensure_ascii=False,
+                                separators=(",", ":")) for row in rows)
+    return hashlib.sha256(json.dumps(encoded, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def _execute_candidates(candidates, db_path, timeout):
+    cache = {}
+    for candidate in candidates:
+        sql = candidate["final_sql"]
+        if not sql:
+            continue
+        if sql not in cache:
+            try:
+                rows = _execute_result_set(db_path, sql, timeout)
+                preview = sorted(rows, key=repr)[:50]
+                cache[sql] = {
+                    "result_hash": _result_fingerprint(rows), "row_count": len(rows),
+                    "sample_rows": [[value.hex() if isinstance(value, bytes) else
+                                     str(value) if isinstance(value, float) and not math.isfinite(value) else value for value in row]
+                                    for row in preview],
+                    "truncated": len(rows) > 50, "error": None,
+                    "row_count_semantics": "distinct_rows_for_BIRD_EX",
+                }
+            except (sqlite3.Error, OSError, ValueError, TypeError) as error:
+                cache[sql] = {"error": f"{type(error).__name__}: {error}"}
+        candidate["execution"] = deepcopy(cache[sql])
+        if candidate["execution"]["error"]:
+            candidate["error"] = candidate["execution"]["error"]
+            candidate["final_sql"] = None
+
+
+def select_self_consistency(candidates):
+    """Zero-model-cost vote over full execution results; earliest index breaks ties."""
+    groups = {}
+    for candidate in candidates:
+        execution = candidate.get("execution") or {}
+        if candidate.get("final_sql") and not execution.get("error") and execution.get("result_hash"):
+            groups.setdefault(execution["result_hash"], []).append(candidate["candidate_index"])
+    winner = min(groups.values(), key=lambda indices: (-len(indices), min(indices))) if groups else []
+    return {"mode": "self_consistency", "selected_candidate_index": min(winner) if winner else None,
+            "groups": groups, "extra_llm_calls": 0}
+
+
+def _selected_sql(candidates, selection):
+    index = (selection or {}).get("selected_candidate_index")
+    return next((candidate["final_sql"] for candidate in candidates
+                 if candidate["candidate_index"] == index), None)
+
+
+def _aggregate_candidate_metrics(candidates, selection, elapsed):
+    measurements = [candidate["metrics"] for candidate in candidates]
+    selection_metrics = (selection or {}).get("metrics")
+    if selection_metrics:
+        measurements.append(dict(selection_metrics, turn=0, sql_attempts=0,
+                                 sql_execution_count=0, self_correction_cycles=0))
+    aggregate = _sum_query_metrics(measurements)
+    aggregate.pop("fallback_count", None)
+    aggregate["stages"] = [dict(stage, candidate_index=candidate["candidate_index"])
+                           for candidate in candidates for stage in candidate["metrics"].get("stages", [])]
+    aggregate["stages"].extend((selection_metrics or {}).get("stages", []))
+    aggregate["generation_cost_usd"] = _sum_query_metrics([candidate["metrics"] for candidate in candidates])["cost_usd"]
+    aggregate["selection_cost_usd"] = selection_metrics.get("cost_usd") if selection_metrics else 0.0
+    aggregate["latency_seconds"] = elapsed
+    aggregate["trajectory_count"] = len(candidates)
+    aggregate["selected_candidate_index"] = (selection or {}).get("selected_candidate_index")
+    aggregate["selected_turn"] = next((candidate["turn"] for candidate in candidates
+                                      if candidate["candidate_index"] == aggregate["selected_candidate_index"]), None)
+    if len(candidates) == 1:
+        for key in ("trace_id", "trace_url"):
+            if key in candidates[0]["metrics"]:
+                aggregate[key] = candidates[0]["metrics"][key]
+    return aggregate
+
+
+def _unknown_query_metrics() -> dict[str, Any]:
+    return {
+        "prompt_tokens": None,
+        "completion_tokens": None,
+        "total_tokens": None,
+        "cost_usd": None,
+        "observed_prompt_tokens": None,
+        "observed_completion_tokens": None,
+        "observed_total_tokens": None,
+        "observed_cost_usd": None,
+        "llm_latency_seconds": None,
+        "latency_seconds": None,
+        "turn": None,
+        "sql_attempts": None,
+        "sql_execution_count": None,
+        "self_correction_cycles": None,
+        "accounting_complete": False,
+        "stages": [],
+    }
+
+
+def _sum_query_metrics(queries: list[dict[str, Any]]) -> dict[str, Any]:
+    """Sum complete fields only; never disguise missing accounting as zero."""
+    fields = (
+        "prompt_tokens", "completion_tokens", "total_tokens", "cost_usd",
+        "llm_latency_seconds", "latency_seconds", "end_to_end_latency_seconds",
+        "turn", "sql_attempts", "sql_execution_count", "self_correction_cycles",
+        "observed_prompt_tokens", "observed_completion_tokens",
+        "observed_total_tokens", "observed_cost_usd",
+    )
+    totals = {}
+    for field in fields:
+        values = [query.get(field) for query in queries]
+        if field.startswith("observed_"):
+            known_values = [value for value in values if value is not None]
+            totals[field] = sum(known_values) if known_values or not queries else None
+        else:
+            totals[field] = sum(values) if all(value is not None for value in values) else None
+    totals["accounting_complete"] = all(query["accounting_complete"] for query in queries)
+    totals["fallback_count"] = sum(bool(query.get("fallback_used")) for query in queries)
+    return totals
+
+
+def _execute_result_set(db_path: Path, sql: str, timeout_seconds: float, *, deadline: float | None = None) -> set[tuple]:
     if not isinstance(sql, str) or not sql.strip():
         raise ValueError("SQL query must be a non-empty string")
-    uri = db_path.as_uri() + "?mode=ro"
+    if deadline is None:
+        deadline = monotonic() + timeout_seconds
+    if monotonic() >= deadline:
+        raise TimeoutError("SQL execution exceeded its time budget")
+    uri = db_path.resolve().as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True, timeout=timeout_seconds)) as connection:
         connection.execute("PRAGMA query_only = ON")
         read_actions = {
@@ -138,7 +543,6 @@ def _execute_result_set(db_path: Path, sql: str, timeout_seconds: float) -> set[
                 sqlite3.SQLITE_OK if action in read_actions else sqlite3.SQLITE_DENY
             )
         )
-        deadline = monotonic() + timeout_seconds
         connection.set_progress_handler(lambda: monotonic() >= deadline, 1000)
         cursor = connection.execute(sql)
         if cursor.description is None:
@@ -148,6 +552,8 @@ def _execute_result_set(db_path: Path, sql: str, timeout_seconds: float) -> set[
             if monotonic() >= deadline:
                 raise TimeoutError("SQL execution exceeded its time budget")
             rows.update(batch)
+        if monotonic() >= deadline:
+            raise TimeoutError("SQL execution exceeded its time budget")
         return rows
 
 
@@ -157,7 +563,7 @@ def compute_execution_accuracy(
     predictions_path: str,
     limit: int | None = None,
     *,
-    timeout_seconds: float = 5.0,
+    timeout_seconds: float = 30.0,
 ) -> dict[str, Any]:
     """Return correct, total, execution_accuracy (0-100), and per-item results.
 
@@ -193,8 +599,9 @@ def compute_execution_accuracy(
             if predicted_db_id != item["db_id"]:
                 raise ValueError("Prediction db_id does not match the dataset record")
             db_path = _database_path(db_dir, item["db_id"])
-            predicted_rows = _execute_result_set(db_path, sql, timeout_seconds)
-            gold_rows = _execute_result_set(db_path, item["SQL"], timeout_seconds)
+            deadline = monotonic() + timeout_seconds
+            predicted_rows = _execute_result_set(db_path, sql, timeout_seconds, deadline=deadline)
+            gold_rows = _execute_result_set(db_path, item["SQL"], timeout_seconds, deadline=deadline)
             matched = predicted_rows == gold_rows
         except (sqlite3.Error, OSError, ValueError, KeyError, TypeError) as error:
             error_message = f"{type(error).__name__}: {error}"
@@ -219,13 +626,22 @@ def main() -> None:
     parser.add_argument("--dev-json", required=True, help="BIRD dev.json path")
     parser.add_argument("--db-dir", required=True, help="BIRD dev_databases directory")
     parser.add_argument("--output", default="predict.json", help="Prediction JSON path")
+    parser.add_argument("--metrics-output", default=None, help="Metrics JSON path (default: <output stem>.metrics.json)")
     parser.add_argument("--limit", type=int, default=None, help="First N questions")
     parser.add_argument("--score-only", action="store_true", help="Score existing predictions")
     args = parser.parse_args()
     if not args.score_only:
-        run_bird_evaluation(args.dev_json, args.db_dir, args.output, args.limit)
+        run_bird_evaluation(
+            args.dev_json, args.db_dir, args.output, args.limit,
+            metrics_path=args.metrics_output,
+        )
         print(f"Predictions saved to {args.output}")
-    score = compute_execution_accuracy(args.dev_json, args.db_dir, args.output, args.limit)
+        metrics_path = Path(args.metrics_output) if args.metrics_output else Path(args.output).with_suffix(".metrics.json")
+        print(f"Metrics saved to {metrics_path}")
+        with metrics_path.open(encoding="utf-8") as handle:
+            score = json.load(handle)
+    else:
+        score = compute_execution_accuracy(args.dev_json, args.db_dir, args.output, args.limit)
     print(f"Execution Accuracy (EX): {score['execution_accuracy']:.2f}% "
           f"({score['correct']}/{score['total']})")
 

@@ -31,8 +31,8 @@ PLAN = {
 }
 
 
-def generated_sql(sql):
-    return {"thought": "Use the students schema and the requested filter.", "sql_query": sql}
+def generated_sql(sql, action="final_answer"):
+    return {"action": action, "rationale": "Use the students schema and the requested filter.", "sql_query": sql}
 
 
 class ScriptedClient:
@@ -132,7 +132,7 @@ class BirdEvaluatorIntegrationTests(unittest.TestCase):
         self.assertEqual(len(report["results"]), total)
 
     def assert_fallback(self, prediction, db_id):
-        self.assertEqual(prediction, "SELECT 1;" + BIRD_SEPARATOR + db_id)
+        self.assertIsNone(prediction)
 
     def test_full_pipeline_preserves_question_ids_and_scores_correct_sql(self):
         predictions, client = self.run_pipeline(
@@ -185,10 +185,10 @@ class BirdEvaluatorIntegrationTests(unittest.TestCase):
                 self.assertEqual(len(client.calls), 2 * limit)
                 self.assert_score(self.evaluate(limit=limit), limit, limit)
 
-    def test_exception_or_exhaustion_falls_back_and_next_item_still_runs(self):
+    def test_exception_or_exhaustion_emits_null_and_next_item_still_runs(self):
         failures = [
             [RuntimeError("Scripted model transport failure")],
-            [PLAN] + [generated_sql("SELECT nonexistent_column FROM students")] * 3,
+            [PLAN] + [generated_sql("SELECT nonexistent_column FROM students", "probe")] * 5,
         ]
         for failed_responses in failures:
             with self.subTest(failure=type(failed_responses[0]).__name__):

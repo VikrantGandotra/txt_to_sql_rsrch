@@ -42,8 +42,10 @@ class ScriptedClient:
 
     def __init__(self, sql_candidates):
         self.responses = [PLAN] + [
-            {"thought": "Use the schema and previous database observation.", "sql_query": sql}
-            for sql in sql_candidates
+            {"action": "final_answer" if index == len(sql_candidates) - 1 else "probe",
+             "rationale": "Use the schema and previous database observation.", "sql_query": sql}
+            if isinstance(sql, str) else sql
+            for index, sql in enumerate(sql_candidates)
         ]
         self.calls = []
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
@@ -87,7 +89,7 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
             QUESTION, EVIDENCE
         )
 
-    def make_agent(self, sql_candidates, *, expect_non_empty=True):
+    def make_agent(self, sql_candidates, *, expect_non_empty=False):
         client = ScriptedClient(sql_candidates)
         agent = SQLAgentGraph(
             client=client, model_name="test-model", expect_non_empty=expect_non_empty
@@ -122,7 +124,8 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertEqual(result["final_sql"], JOIN_SQL)
         self.assertEqual(result["turn"], 1)
         self.assertEqual(result["history"], [{
-            "sql": JOIN_SQL, "observation": result["observation"]
+            "sql": JOIN_SQL, "observation": result["observation"],
+            "action": "final_answer", "rationale": "Use the schema and previous database observation.",
         }])
         observation = self.observation(result)
         self.assertEqual(observation.row_count, 2)
@@ -132,7 +135,8 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertEqual(len(client.calls), 2)
         for call in client.calls:
             self.assertEqual(call["model"], "test-model")
-            self.assertEqual(call["temperature"], 0.0)
+            self.assertEqual(call["temperature"], 0.8)
+            self.assertEqual(call["top_p"], 0.7)
             self.assertEqual(call["response_format"]["type"], "json_schema")
             structured_format = call["response_format"]["json_schema"]
             self.assertTrue(structured_format["strict"])
@@ -146,11 +150,10 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertIn(EVIDENCE, decomposition_prompt)
         self.assertIn("enrollments", decomposition_prompt)
 
-    def test_openrouter_fallback_is_serialized_for_both_model_requests(self):
-        primary_model = "qwen/qwen2.5-coder-7b-instruct"
-        fallback_model = "qwen/qwen-2.5-coder-32b-instruct"
+    def test_openrouter_formal_requests_pin_7b_without_cross_model_fallback(self):
+        primary_model = "openrouter/qwen/qwen-2.5-7b-instruct"
         request_bodies = []
-        responses = [PLAN, {"thought": "Join the requested course to its students.", "sql_query": JOIN_SQL}]
+        responses = [PLAN, {"action": "final_answer", "rationale": "Join the requested course to its students.", "sql_query": JOIN_SQL}]
 
         def respond(request):
             request_bodies.append(json.loads(request.content))
@@ -159,7 +162,7 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
                 "id": f"offline-fallback-{len(request_bodies)}",
                 "object": "chat.completion",
                 "created": 0,
-                "model": fallback_model,
+                "model": primary_model.removeprefix("openrouter/"),
                 "choices": [{
                     "index": 0,
                     "finish_reason": "stop",
@@ -173,17 +176,17 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
             max_retries=0,
             http_client=httpx.Client(transport=httpx.MockTransport(respond)),
         ) as client:
-            agent = SQLAgentGraph(client=client, model_name=primary_model)
+            agent = SQLAgentGraph(client=client, model_name=primary_model, formal=True)
             result = self.run_agent(agent)
 
         self.assertEqual(len(request_bodies), 2)
         required_fields = [
             ("target_tables", "target_columns", "reasoning"),
-            ("thought", "sql_query"),
+            ("action", "rationale", "sql_query"),
         ]
         for body, fields in zip(request_bodies, required_fields):
-            self.assertEqual(body["model"], primary_model)
-            self.assertEqual(body["models"], [fallback_model])
+            self.assertEqual(body["model"], primary_model.removeprefix("openrouter/"))
+            self.assertNotIn("models", body)
             self.assertNotIn("extra_body", body)
             self.assertEqual(body["max_tokens"], 2048)
             self.assertEqual(body["response_format"], {"type": "json_object"})
@@ -215,7 +218,7 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertIn("no such column", repair_prompt)
         self.assertEqual(len(client.calls), 3)
 
-    def test_empty_result_triggers_repair_and_preserves_observation(self):
+    def test_empty_probe_is_successful_and_preserves_observation(self):
         empty_sql = "SELECT student_name FROM students WHERE student_id < 0"
         agent, client = self.make_agent([empty_sql, JOIN_SQL])
         result = self.run_agent(agent)
@@ -223,7 +226,7 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertEqual(result["turn"], 2)
         self.assertTrue(result["is_valid"])
         empty = VerificationResult.model_validate_json(result["history"][0]["observation"])
-        self.assertFalse(empty.is_valid)
+        self.assertTrue(empty.is_valid)
         self.assertEqual(empty.row_count, 0)
         self.assertEqual(empty.sample_rows, [])
         repair_prompt = json.dumps(client.calls[2]["messages"])
@@ -242,7 +245,7 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
                 self.assertEqual(len(result["history"]), limit)
                 self.assertEqual(len(client.calls), limit + 1)
                 self.assertEqual(should_continue(result), "end")
-                retry_state = dict(result, turn=limit - 1)
+                retry_state = dict(result, turn=limit - 1, is_final=False)
                 self.assertEqual(should_continue(retry_state), "generator")
 
     def test_explicitly_allowed_empty_results_and_zero_counts_are_valid(self):
@@ -275,7 +278,7 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
             ).fetchall()
         self.assertEqual(rows, [("Ada",), ("Grace",), ("Linus",)])
 
-    def test_verifier_counts_all_rows_but_keeps_five_json_serializable_samples(self):
+    def test_verifier_counts_all_rows_but_keeps_fifty_json_serializable_samples(self):
         sql = """WITH RECURSIVE numbers(n) AS (
             SELECT 1 UNION ALL SELECT n + 1 FROM numbers WHERE n < 1005
         ) SELECT n, X'00FF' FROM numbers ORDER BY n"""
@@ -285,7 +288,55 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertTrue(result["is_valid"])
         observation = self.observation(result)
         self.assertEqual(observation.row_count, 1005)
-        self.assertEqual(observation.sample_rows, [[n, "00ff"] for n in range(1, 6)])
+        self.assertEqual(observation.sample_rows, [[n, "00ff"] for n in range(1, 51)])
+        self.assertEqual(observation.columns, ["n", "X'00FF'"])
+
+    def test_successful_probe_continues_until_explicit_final_submission(self):
+        probe = "SELECT COUNT(*) AS total FROM students"
+        agent, client = self.make_agent([probe, JOIN_SQL])
+        result = self.run_agent(agent)
+        self.assertEqual(result["final_sql"], JOIN_SQL)
+        self.assertEqual(result["turn"], 2)
+        self.assertEqual(result["sql_execution_count"], 2)
+        self.assertEqual(result["self_correction_cycles"], 0)
+        self.assertEqual(result["history"][0]["action"], "probe")
+        self.assertIn("total", json.dumps(client.calls[2]["messages"]))
+        self.assertEqual(json.loads(result["history"][0]["observation"])["sample_rows"], [[3]])
+
+    def test_budget_exhaustion_does_not_promote_successful_probe_to_answer(self):
+        agent, _ = self.make_agent([
+            {"action": "probe", "rationale": "Explore", "sql_query": "SELECT COUNT(*) FROM students"}
+        ] * 5)
+        result = self.run_agent(agent, max_turns=5)
+        self.assertEqual(result["turn"], 5)
+        self.assertIsNone(result["final_sql"])
+        self.assertFalse(result["is_final"])
+
+    def test_invalid_explicit_final_submission_terminates_without_answer(self):
+        agent, client = self.make_agent(["SELECT absent FROM students"])
+        result = self.run_agent(agent)
+        self.assertEqual(result["turn"], 1)
+        self.assertTrue(result["is_final"])
+        self.assertIsNone(result["final_sql"])
+        self.assertEqual(len(client.calls), 2)
+
+    def test_formal_mode_rejects_unexpected_served_model_and_preserves_accounting(self):
+        client = ScriptedClient([JOIN_SQL])
+        original = client.create
+
+        def wrong_model(**kwargs):
+            response = original(**kwargs)
+            response.model = "qwen/qwen-2.5-coder-32b-instruct"
+            response.usage = {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6, "cost": 0.001}
+            return response
+
+        client.chat.completions.create = wrong_model
+        agent = SQLAgentGraph(client=client, model_name="openrouter/qwen/qwen-2.5-7b-instruct", formal=True)
+        with self.assertRaisesRegex(ValueError, "Formal evaluation received model") as caught:
+            self.run_agent(agent)
+        self.assertEqual(caught.exception.mars_metrics["total_tokens"], 6)
+        self.assertEqual(caught.exception.mars_state["termination_reason"], "model_error")
+        self.assertEqual(caught.exception.mars_state["history"], [])
 
     def test_attach_cannot_create_another_database(self):
         attached_path = self.db_path.with_name("attached.db")
@@ -299,7 +350,7 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertFalse(attached_path.exists())
 
     def test_invalid_model_output_propagates_instead_of_becoming_sql_failure(self):
-        for model_name in ("test-model", "qwen/qwen2.5-coder-7b-instruct"):
+        for model_name in ("test-model", "openrouter/qwen/qwen-2.5-7b-instruct"):
             with self.subTest(model=model_name):
                 client = ScriptedClient([JOIN_SQL])
                 agent = SQLAgentGraph(client=client, model_name=model_name)

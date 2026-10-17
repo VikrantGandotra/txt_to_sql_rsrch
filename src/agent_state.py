@@ -1,6 +1,6 @@
 """Structured model outputs and shared state for the SQL agent graph."""
 
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, Literal, NotRequired, Optional, TypedDict, Union
 
 from pydantic import BaseModel, Field
 
@@ -26,9 +26,10 @@ class DecompositionPlan(BaseModel):
 class GeneratedSQL(BaseModel):
     """Candidate SQL and reasoning produced by the Generator."""
 
-    thought: str = Field(
-        description="Internal reasoning analyzing current state, schema, and error traces."
+    action: Literal["probe", "final_answer"] = Field(
+        description="probe executes exploratory SQL and observes it; final_answer submits the solution."
     )
+    rationale: str = Field(description="Concise explanation of this action and relevant observations.")
     sql_query: str = Field(description="The executable SQLite query.")
 
 
@@ -36,15 +37,16 @@ class VerificationResult(BaseModel):
     """Result of runtime execution and logical verification."""
 
     is_valid: bool = Field(
-        description="True if SQL executed cleanly with non-empty plausible data."
+        description="True if SQL executed cleanly; this is not semantic correctness or finalization."
     )
     error_message: Optional[str] = Field(
         default=None, description="Captured SQLite error trace if execution failed."
     )
     row_count: int = Field(default=0, description="Number of rows returned from execution.")
     sample_rows: List[Any] = Field(
-        default_factory=list, description="Top 5 execution result rows."
+        default_factory=list, description="Up to 50 execution result rows."
     )
+    columns: List[str] = Field(default_factory=list, description="Result column names in order.")
 
 
 class AgentState(TypedDict):
@@ -52,11 +54,23 @@ class AgentState(TypedDict):
     evidence: str
     schema_ddl: str
     db_path: str
-    plan: Optional[DecompositionPlan]
+    plan: Optional[Union[DecompositionPlan, str]]
     current_sql: Optional[str]
     observation: Optional[str]
-    history: List[Dict[str, str]]
-    turn: int
+    history: List[Dict[str, Any]]
+    turn: int  # Completed Generator decisions, including explicit final submission.
     max_turns: int
     is_valid: bool
     final_sql: Optional[str]
+    current_action: NotRequired[Literal["probe", "final_answer"]]
+    rationale: NotRequired[str]
+    is_final: NotRequired[bool]
+    sql_execution_count: NotRequired[int]
+    self_correction_cycles: NotRequired[int]  # Decisions made after failed SQL execution.
+    candidate_index: NotRequired[int]
+    rollout_seed: NotRequired[int]
+    termination_reason: NotRequired[str]
+    latency_seconds: NotRequired[float]
+    question_id: NotRequired[str]
+    db_id: NotRequired[str]
+    metrics: NotRequired[Dict[str, Any]]
