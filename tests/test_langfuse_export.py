@@ -7,7 +7,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 os.environ.setdefault("DSPY_CACHEDIR", str(Path(__file__).resolve().parents[1] / ".dspy_cache"))
@@ -22,7 +22,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from src.dspy_modules import TextToSQLProgram
-from src.dspy_telemetry import OpenRouterLM
+from src.dspy_telemetry import OpenRouterLM, observation_identifiers
 from src.sql_agent_graph import SQLAgentGraph, build_sql_graph
 
 
@@ -182,6 +182,17 @@ class LangfuseExportIntegrationTests(unittest.TestCase):
         self.assertEqual(usage["prompt_tokens_details"], {"cached_tokens": 3})
         self.assertEqual(usage["completion_tokens_details"], {"reasoning_tokens": 2})
 
+    def assert_stage_correlations(self, metrics, children):
+        self.assertEqual(len(metrics["stages"]), len(children))
+        for stage, child in zip(metrics["stages"], children):
+            self.assertEqual(stage["trace_id"], format(child.context.trace_id, "032x"))
+            self.assertEqual(stage["observation_id"], format(child.context.span_id, "016x"))
+
+    def test_absent_or_mock_observation_ids_are_not_saved(self):
+        for observation in (None, Mock(), Mock(trace_id=None, id=""), Mock(trace_id=7, id=" ")):
+            with self.subTest(observation=observation):
+                self.assertEqual(observation_identifiers(observation), {})
+
     def test_real_exports_include_usage_cost_and_trace_when_history_is_disabled(self):
         result, lm, spans = self.invoke([
             formatted_field("logical_plan", PLAN), formatted_field("sql_query", SQL),
@@ -196,6 +207,7 @@ class LangfuseExportIntegrationTests(unittest.TestCase):
         self.assertTrue(metrics["accounting_complete"])
         self.assertEqual([stage["prompt_tokens"] for stage in metrics["stages"]], [11, 22])
         root, children = self.assert_query_trace(spans, ["mars_decomposer", "mars_generator"])
+        self.assert_stage_correlations(metrics, children)
         self.assertEqual(metrics["trace_id"], format(root.context.trace_id, "032x"))
         self.assertEqual(root.attributes[TRACE + "metadata.prompt_tokens"], "33")
         self.assertEqual(root.attributes[OBSERVATION + "metadata.prompt_tokens"], 33)
@@ -227,6 +239,7 @@ class LangfuseExportIntegrationTests(unittest.TestCase):
         root, children = self.assert_query_trace(
             spans, ["mars_decomposer", "mars_generator", "mars_generator"]
         )
+        self.assert_stage_correlations(result["metrics"], children)
         for number, child in enumerate(children, start=1):
             self.assert_generation_accounting(child, number)
         total_cost = sum(json.loads(span.attributes[OBSERVATION + "cost_details"])["total"] for span in children)
@@ -242,6 +255,7 @@ class LangfuseExportIntegrationTests(unittest.TestCase):
         self.assertEqual(self.last_failure.mars_metrics["prompt_tokens"], 33)
         self.assertAlmostEqual(self.last_failure.mars_metrics["cost_usd"], 0.003)
         root, children = self.assert_query_trace(spans, ["mars_decomposer", "mars_generator"])
+        self.assert_stage_correlations(self.last_failure.mars_metrics, children)
         for number, child in enumerate(children, start=1):
             self.assert_generation_accounting(child, number)
         self.assertEqual(root.attributes[TRACE + "metadata.turn"], "0")

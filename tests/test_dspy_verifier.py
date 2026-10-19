@@ -105,7 +105,8 @@ class DSPyVerifierTests(unittest.TestCase):
         @contextmanager
         def start_observation(**fields):
             observations.append(fields)
-            yield SimpleNamespace(update=lambda **updates: fields.update(updates))
+            yield SimpleNamespace(trace_id="dspy-verifier-trace", id=f"dspy-observation-{len(observations)}",
+                                  update=lambda **updates: fields.update(updates))
 
         client = SimpleNamespace(start_as_current_observation=start_observation, flush=Mock())
 
@@ -123,6 +124,9 @@ class DSPyVerifierTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["completion_tokens"], 10)
         self.assertAlmostEqual(result["metrics"]["cost_usd"], 0.0002)
         self.assertEqual(observations[1]["usage_details"], {"input": 20, "output": 5, "total": 25})
+        for index, stage in enumerate(result["metrics"]["stages"], start=1):
+            self.assertEqual(stage["trace_id"], "dspy-verifier-trace")
+            self.assertEqual(stage["observation_id"], f"dspy-observation-{index}")
         client.flush.assert_called_once()
 
     def test_formal_model_mismatch_retains_charge_but_cannot_win(self):

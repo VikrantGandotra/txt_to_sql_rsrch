@@ -18,7 +18,7 @@ from src.dspy_modules import provider_model_id
 
 from src.dspy_telemetry import (
     capture_lm_responses, capture_query_metrics, generation_telemetry,
-    record_stage_metrics, summarize_query_metrics,
+    observation_identifiers, record_stage_metrics, summarize_query_metrics,
 )
 
 COMPILED_VERIFIER_PATH = Path(__file__).resolve().parents[1] / "compiled_dspy_verifier.json"
@@ -191,6 +191,7 @@ def select_with_dspy(
                     finally:
                         stage = record_stage_metrics("dspy_verifier", sample_index + 1, responses,
                                                      perf_counter() - call_started, failure)
+                        stage.update(observation_identifiers(observation))
                         stage.update(candidate_index=index, verification_sample=sample_index)
                         if observation is not None:
                             details = generation_telemetry(responses)

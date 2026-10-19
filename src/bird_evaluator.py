@@ -98,14 +98,14 @@ def run_bird_evaluation(
 
     The library default is one trajectory for live integration checks. Formal
     ``run_ablation.py`` runs eight in parallel. Missing final answers are JSON
-    null, never executable placeholders. The DSPy selection condition also
-    saves self-consistency predictions from the SAME candidate pool.
+    null, never executable placeholders. Judge-based selection modes also
+    save self-consistency predictions from the SAME candidate pool.
     """
     for name, value in (("num_candidates", num_candidates), ("max_turns", max_turns),
                         ("max_workers", max_workers), ("verification_samples", verification_samples)):
         if isinstance(value, bool) or not isinstance(value, int) or value < 1:
             raise ValueError(f"{name} must be a positive integer")
-    if selection_mode not in {"self_consistency", "dspy_verifier"}:
+    if selection_mode not in {"self_consistency", "dspy_verifier", "generative_verifier", "hybrid_cascade"}:
         raise ValueError("Unknown selection_mode")
     if prompt_mode not in {"uncompiled_dspy", "compiled_dspy", "baseline"}:
         raise ValueError("Unknown prompt_mode")
@@ -122,7 +122,7 @@ def run_bird_evaluation(
     metrics_destination = Path(metrics_path) if metrics_path else destination.with_suffix(".metrics.json")
     baseline_destination = destination.with_suffix(".self_consistency.json")
     outputs = [destination.resolve(), metrics_destination.resolve()]
-    if selection_mode == "dspy_verifier":
+    if selection_mode != "self_consistency":
         outputs.append(baseline_destination.resolve())
     protected = {Path(dev_json_path).resolve()}
     for artifact in (compiled_model_path, verifier_path):
@@ -184,7 +184,9 @@ def run_bird_evaluation(
         sql = None
         baseline_sql = None
         candidates = []
-        selection = None
+        selection = ({"mode": "hybrid_cascade", "selected_candidate_index": None,
+                      "cascade_tie_breaker_engaged": False}
+                     if selection_mode == "hybrid_cascade" else None)
         baseline_selection = None
         baseline_metrics = None
         selection_started = False
@@ -258,7 +260,7 @@ def run_bird_evaluation(
                           f"error={execution.get('error') or candidate.get('error')}", flush=True)
                 print(f"[question {question_id}] vote groups (hash -> zero-based indices): "
                       f"{json.dumps(baseline_selection['groups'], sort_keys=True)}", flush=True)
-                print(f"[question {question_id}] winner: "
+                print(f"[question {question_id}] self-consistency winner: "
                       f"{None if baseline_selection['selected_candidate_index'] is None else baseline_selection['selected_candidate_index'] + 1}", flush=True)
             baseline_sql = _selected_sql(candidates, baseline_selection)
             baseline_metrics = _aggregate_candidate_metrics(candidates, baseline_selection, perf_counter() - inference_started)
@@ -271,12 +273,29 @@ def run_bird_evaluation(
                     question, evidence, ddl, candidates, verifier=verifier,
                     verification_samples=verification_samples,
                 )
+            elif selection_mode == "generative_verifier":
+                from src.generative_verifier import select_with_generative
+                selection_started = True
+                selection = select_with_generative(
+                    question, evidence, ddl, candidates,
+                    verification_samples=verification_samples,
+                )
+            elif selection_mode == "hybrid_cascade":
+                selection = select_hybrid_cascade(
+                    question, evidence, ddl, candidates,
+                    verification_samples=verification_samples,
+                )
             else:
                 selection = baseline_selection
+            if verbose and selection_mode != "self_consistency":
+                print(f"[question {question_id}] {selection_mode} selection: "
+                      f"{json.dumps({key: value for key, value in selection.items() if key != 'metrics'}, sort_keys=True)}",
+                      flush=True)
             sql = _selected_sql(candidates, selection)
             metrics = _aggregate_candidate_metrics(candidates, selection, perf_counter() - inference_started)
             if not sql:
                 errors = [candidate["error"] for candidate in candidates if candidate.get("error")]
+                errors.extend(str(error) for error in selection.get("errors", []))
                 error_message = "; ".join(errors) or "No eligible final answer was selected"
         except Exception as error:
             # Configuration errors must not masquerade as a dataset-wide model
@@ -285,10 +304,11 @@ def run_bird_evaluation(
                 raise
             logger.error("Error on question %s: %s", question_id, error)
             if candidates:
-                selection = selection or {"mode": selection_mode, "selected_candidate_index": None}
+                selection = (getattr(error, "mars_selection", None) or selection
+                             or {"mode": selection_mode, "selected_candidate_index": None})
                 if getattr(error, "mars_metrics", None):
                     selection["metrics"] = error.mars_metrics
-                elif selection_started:
+                elif selection_started or selection.get("cascade_tie_breaker_engaged"):
                     selection["metrics"] = _unknown_query_metrics()
                 metrics = _aggregate_candidate_metrics(candidates, selection, perf_counter() - inference_started)
             else:
@@ -329,7 +349,7 @@ def run_bird_evaluation(
         "queries": query_metrics,
         "totals": _sum_query_metrics(query_metrics),
     }
-    if selection_mode == "dspy_verifier":
+    if selection_mode != "self_consistency":
         baseline_destination.write_text(json.dumps(baseline_predictions, indent=2), encoding="utf-8")
         report["self_consistency"] = {
             "predictions_path": str(baseline_destination.resolve()),
@@ -448,6 +468,56 @@ def select_self_consistency(candidates):
     winner = min(groups.values(), key=lambda indices: (-len(indices), min(indices))) if groups else []
     return {"mode": "self_consistency", "selected_candidate_index": min(winner) if winner else None,
             "groups": groups, "extra_llm_calls": 0}
+
+
+def select_hybrid_cascade(
+    question, evidence, schema_ddl, candidates, *, verification_samples=1, judge=None,
+):
+    """Judge only flat ties between the largest full-result execution groups.
+
+    A unique top group wins, even without an absolute majority of all rollouts
+    (e.g. 3-2-2-1). Execution eligibility and hashing are identical to the
+    self-consistency baseline. Candidate indices always refer to the original
+    rollout pool, including when only a subset is sent to the judge.
+    """
+    selection = dict(select_self_consistency(candidates), mode="hybrid_cascade",
+                     cascade_tie_breaker_engaged=False, tied_candidate_indices=[],
+                     selection_source="self_consistency")
+    groups = selection["groups"]
+    if not groups:
+        return selection
+    highest_count = max(len(indices) for indices in groups.values())
+    top_groups = [indices for indices in groups.values() if len(indices) == highest_count]
+    if len(top_groups) == 1:
+        return selection
+
+    tied_indices = {index for indices in top_groups for index in indices}
+    tied_candidates = [candidate for candidate in candidates
+                       if candidate["candidate_index"] in tied_indices]
+    selection.update(selected_candidate_index=None, cascade_tie_breaker_engaged=True,
+                     tied_candidate_indices=sorted(tied_indices),
+                     selection_source="generative_verifier", extra_llm_calls=None)
+    try:
+        if judge is None:
+            from src.generative_verifier import select_with_generative
+            judge = select_with_generative
+        judged = judge(question, evidence, schema_ddl, tied_candidates,
+                       verification_samples=verification_samples)
+        selected_index = judged.get("selected_candidate_index")
+        if selected_index is not None and selected_index not in tied_indices:
+            failure = ValueError("Generative verifier selected a candidate outside the tied top groups")
+            failure.mars_metrics = judged.get("metrics")
+            raise failure
+    except Exception as error:
+        # Retain routing evidence and billed/unknown selector usage if setup,
+        # provider transport, or telemetry fails after entering the judge path.
+        error.mars_selection = selection
+        raise
+    return dict(judged, mode="hybrid_cascade", groups=groups,
+                cascade_tie_breaker_engaged=True,
+                tied_candidate_indices=selection["tied_candidate_indices"],
+                selection_source="generative_verifier",
+                extra_llm_calls=(judged.get("metrics") or {}).get("llm_call_count"))
 
 
 def _selected_sql(candidates, selection):

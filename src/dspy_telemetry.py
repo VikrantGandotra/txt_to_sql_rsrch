@@ -54,6 +54,20 @@ def _get(value: Any, key: str, default=None):
     return value.get(key, default) if isinstance(value, Mapping) else getattr(value, key, default)
 
 
+def observation_identifiers(observation: Any) -> dict[str, str]:
+    """Link local accounting to its Langfuse generation without SDK objects.
+
+    Tracing can be absent or replaced with a test double. Retain only actual
+    nonempty string IDs so either case stays JSON serializable.
+    """
+    identifiers = {}
+    for field, attribute in (("trace_id", "trace_id"), ("observation_id", "id")):
+        value = getattr(observation, attribute, None)
+        if isinstance(value, str) and value.strip():
+            identifiers[field] = value
+    return identifiers
+
+
 def _normalise(value: Any):
     if hasattr(value, "model_dump"):
         value = value.model_dump(exclude_none=True)

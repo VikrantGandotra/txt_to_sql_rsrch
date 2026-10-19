@@ -12,8 +12,10 @@ def main(argv=None):
     parser.add_argument("--dev-json", required=True)
     parser.add_argument("--db-dir", required=True)
     parser.add_argument("--limit", type=int, default=100)
-    parser.add_argument("--selection", choices=("self_consistency", "dspy_verifier"),
-                        default="self_consistency")
+    parser.add_argument("--selection", choices=("self_consistency", "dspy_verifier",
+                                               "generative_verifier", "hybrid_cascade"),
+                        default="self_consistency",
+                        help="hybrid_cascade uses execution votes, judging only tied top groups")
     parser.add_argument("--prompt-mode", choices=("compiled_dspy", "uncompiled_dspy", "baseline"),
                         default="compiled_dspy")
     parser.add_argument("--compiled-model", default=None)
@@ -25,7 +27,7 @@ def main(argv=None):
     parser.add_argument("--top-p", type=float, default=0.7)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--verification-samples", type=int, default=1,
-                        help="DSPy rating samples per candidate (1 is the low-cost ablation; use 8 to match sample count)")
+                        help="Judge samples per eligible candidate (hybrid judges only tied top groups)")
     parser.add_argument("--output", default=None)
     args = parser.parse_args(argv)
     output = args.output or str(Path("artifacts") / "ablation" / args.selection / "predict.json")

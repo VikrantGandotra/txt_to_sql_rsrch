@@ -32,6 +32,7 @@ from src.dspy_telemetry import (
     capture_query_metrics,
     generation_telemetry,
     make_response_record,
+    observation_identifiers,
     record_stage_metrics,
     summarize_query_metrics,
 )
@@ -185,6 +186,7 @@ class SQLAgentGraph:
                     stage_metrics = record_stage_metrics(
                         stage, metadata["turn"], responses, perf_counter() - started, failure,
                     )
+                    stage_metrics.update(observation_identifiers(observation))
                     details = generation_telemetry(responses)
                     details["metadata"] = {
                         **metadata,
