@@ -2,12 +2,15 @@
 
 from contextlib import closing, contextmanager
 import json
+import os
 from pathlib import Path
 import sqlite3
 import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
+from uuid import uuid4
+from pydantic import SecretStr
 
 import dspy
 from dspy.utils.dummies import DummyLM
@@ -15,25 +18,34 @@ import httpx
 from openai import OpenAI
 
 from src.bird_evaluator import run_bird_evaluation
-from src.config import settings
+from src.config import Settings, settings
 from src.dspy_modules import FORMAL_MODEL, TextToSQLProgram, create_dspy_lm, provider_model_id
 from src.dspy_telemetry import generation_telemetry, make_response_record, record_stage_metrics, summarize_query_metrics
 from src.llm_endpoint import resolve_llm_endpoint
 from src.sql_agent_graph import SQLAgentGraph
+from src.telemetry_errors import redact_text
 
 
 class VLLMEndpointTests(unittest.TestCase):
-    def test_endpoint_switch_uses_dummy_key_and_native_checkpoint_name(self):
-        endpoint = resolve_llm_endpoint(FORMAL_MODEL, settings=SimpleNamespace(vllm_base_url="https://pod.example/"))
+    def setUp(self):
+        self.api_key = uuid4().hex
+        self.key_patch = patch.object(settings, "vllm_api_key", SecretStr(self.api_key))
+        self.key_patch.start()
+        self.addCleanup(self.key_patch.stop)
+
+    def test_endpoint_switch_uses_dynamic_key_and_native_checkpoint_name(self):
+        endpoint = resolve_llm_endpoint(FORMAL_MODEL, settings=SimpleNamespace(vllm_base_url="https://pod.example/", vllm_api_key=SecretStr(self.api_key)))
         self.assertEqual(endpoint.base_url, "https://pod.example/v1")
-        self.assertEqual(endpoint.api_key, "RUNPOD_DUMMY_KEY")
+        self.assertEqual(endpoint.api_key, self.api_key)
+        self.assertNotIn(self.api_key, repr(endpoint))
         self.assertEqual(endpoint.model, "Qwen/Qwen2.5-7B-Instruct")
         self.assertEqual(provider_model_id(endpoint.model), provider_model_id(FORMAL_MODEL))
         self.assertNotIn("api_key", endpoint.manifest())
         with patch.object(settings, "vllm_base_url", "https://pod.example/v1"), patch("src.dspy_modules.OpenRouterLM") as constructor:
             create_dspy_lm(formal=True)
             self.assertEqual(constructor.call_args.kwargs["model"], "openai/Qwen/Qwen2.5-7B-Instruct")
-            self.assertEqual(constructor.call_args.kwargs["api_key"], "RUNPOD_DUMMY_KEY")
+            self.assertEqual(constructor.call_args.kwargs["api_key"], self.api_key)
+            self.assertEqual(constructor.call_args.kwargs["api_base"], "https://pod.example/v1")
             self.assertEqual(constructor.call_args.kwargs["telemetry_backend"], "vllm")
 
     def test_blank_url_preserves_openrouter_and_rejects_urls_with_credentials(self):
@@ -44,6 +56,29 @@ class VLLMEndpointTests(unittest.TestCase):
         for url in ("ftp://pod.example", "https://user:secret@pod.example", "https://pod.example?token=secret"):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 resolve_llm_endpoint(FORMAL_MODEL, settings=SimpleNamespace(vllm_base_url=url))
+
+    def test_vllm_requires_key_and_https_without_provider_fallback(self):
+        for key in (None, "", "   ", "key\nvalue"):
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, "VLLM_API_KEY"):
+                resolve_llm_endpoint(FORMAL_MODEL, settings=SimpleNamespace(vllm_base_url="https://pod.example/v1", vllm_api_key=key))
+        with self.assertRaisesRegex(ValueError, "HTTPS"):
+            resolve_llm_endpoint(FORMAL_MODEL, settings=SimpleNamespace(vllm_base_url="http://pod.example", vllm_api_key=self.api_key))
+
+    def test_dotenv_key_loading_environment_precedence_and_redaction(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ):
+            os.environ.pop("VLLM_API_KEY", None)
+            os.environ.pop("VLLM_BASE_URL", None)
+            env = Path(directory) / ".env"
+            env.write_text(f"VLLM_BASE_URL=https://pod.example/v1\nVLLM_API_KEY={self.api_key}\n")
+            kwargs = dict(_env_file=env, openrouter_api_key="", langfuse_public_key=uuid4().hex,
+                          langfuse_secret_key=uuid4().hex, langfuse_base_url="https://telemetry.example")
+            loaded = Settings(**kwargs)
+            self.assertEqual(resolve_llm_endpoint(FORMAL_MODEL, settings=loaded).api_key, self.api_key)
+            self.assertNotIn(self.api_key, repr(loaded))
+            override = uuid4().hex
+            os.environ["VLLM_API_KEY"] = override
+            self.assertEqual(Settings(**kwargs).vllm_api_key.get_secret_value(), override)
+        self.assertNotIn(self.api_key, redact_text("Server echoed " + self.api_key))
 
     def test_vllm_usage_without_cost_keeps_exact_counts_and_declares_cost_scope(self):
         record = make_response_record({"model": "Qwen/Qwen2.5-7B-Instruct", "usage": {
@@ -86,7 +121,7 @@ class VLLMEndpointTests(unittest.TestCase):
             self.assertEqual(result["final_sql"], "SELECT name FROM users")
             for request in requests:
                 self.assertEqual(str(request.url), "https://pod.example/v1/chat/completions")
-                self.assertEqual(request.headers["Authorization"], "Bearer RUNPOD_DUMMY_KEY")
+                self.assertEqual(request.headers["Authorization"], f"Bearer {self.api_key}")
                 self.assertEqual(json.loads(request.content)["model"], "Qwen/Qwen2.5-7B-Instruct")
 
     def test_dspy_graph_saves_exact_vllm_usage_to_json_checkpoint_and_trace(self):

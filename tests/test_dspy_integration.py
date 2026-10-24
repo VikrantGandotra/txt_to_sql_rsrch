@@ -34,7 +34,8 @@ class DSPyIntegrationTests(unittest.TestCase):
         from litellm import get_llm_provider
 
         for configured in (FORMAL_MODEL, provider_model_id(FORMAL_MODEL)):
-            with self.subTest(model=configured), patch("src.dspy_modules.OpenRouterLM") as constructor:
+            from src.config import settings
+            with self.subTest(model=configured), patch.object(settings, "vllm_base_url", ""), patch("src.dspy_modules.OpenRouterLM") as constructor:
                 create_dspy_lm(model_name=configured, formal=True)
                 request = constructor.call_args.kwargs
                 self.assertEqual(request["model"], FORMAL_MODEL)

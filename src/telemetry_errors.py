@@ -14,8 +14,10 @@ def _known_secrets():
     # import config here: inspecting diagnostics must work without credentials.
     settings = getattr(sys.modules.get("src.config"), "settings", None)
     if settings is not None:
-        for name in ("openrouter_api_key", "langfuse_public_key", "langfuse_secret_key"):
+        for name in ("openrouter_api_key", "vllm_api_key", "langfuse_public_key", "langfuse_secret_key"):
             value = getattr(settings, name, None)
+            if hasattr(value, "get_secret_value"):
+                value = value.get_secret_value()
             if isinstance(value, str) and value:
                 secrets.append(value)
     return sorted(secrets, key=len, reverse=True)

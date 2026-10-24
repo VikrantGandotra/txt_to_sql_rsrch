@@ -38,12 +38,21 @@ def resolve_llm_endpoint(model, *, settings=None):
         if (parsed.scheme not in {"http", "https"} or not parsed.hostname
                 or parsed.username or parsed.password or parsed.query or parsed.fragment):
             raise ValueError("VLLM_BASE_URL must be an HTTP(S) API URL without credentials, query parameters or fragments")
+        if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise ValueError("Remote VLLM_BASE_URL must use HTTPS to protect VLLM_API_KEY in transit")
+        key = getattr(settings, "vllm_api_key", "")
+        if hasattr(key, "get_secret_value"):
+            key = key.get_secret_value()
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError("VLLM_API_KEY is required when VLLM_BASE_URL is set")
+        if any(character.isspace() for character in key):
+            raise ValueError("VLLM_API_KEY must not contain whitespace")
         path = parsed.path.rstrip("/")
         if not path.endswith("/v1"):
             path += "/v1"
         base_url = urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
         served_model = "Qwen/Qwen2.5-7B-Instruct" if canonical == "qwen/qwen-2.5-7b-instruct" else canonical
-        return LLMEndpoint("vllm", base_url, served_model, "RUNPOD_DUMMY_KEY")
+        return LLMEndpoint("vllm", base_url, served_model, key)
     key = getattr(settings, "openrouter_api_key", "")
     if not key:
         raise ValueError("Set VLLM_BASE_URL or provide OPENROUTER_API_KEY")

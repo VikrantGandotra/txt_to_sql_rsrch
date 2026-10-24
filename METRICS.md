@@ -263,12 +263,21 @@ it does not stop the evaluator immediately on the first provider billing error.
 Set `VLLM_BASE_URL=https://YOUR-POD-ID-8000.proxy.runpod.net/v1` to route both
 DSPy (generation, compilation and rating selection) and the raw graph client to
 RunPod vLLM. A blank value preserves OpenRouter. `llm_endpoint.py` normalizes
-the URL, uses `RUNPOD_DUMMY_KEY`, and maps the pinned OpenRouter checkpoint to
+the URL, requires `VLLM_API_KEY`, and maps the pinned OpenRouter checkpoint to
 `Qwen/Qwen2.5-7B-Instruct`. Serve that checkpoint under that exact model name.
 The DSPy transport uses `openai/` with the custom base URL. Model validation
 recognizes both checkpoint names; cross-model fallback remains disabled.
 No separate ChatOpenAI initializer exists in this project: LangChain orchestrates
 the graph around the compatible OpenAI client and DSPy predictors.
+
+`VLLM_API_KEY` and `VLLM_BASE_URL` are loaded by Pydantic Settings from the
+environment or the project `.env`; process environment values take precedence.
+The key is a masked SecretStr in settings, excluded from endpoint repr/manifests,
+and supplied as plain text only to client initialization. A configured vLLM URL
+without a nonblank key fails closed; no default credential or OpenRouter fallback
+is used. Remote endpoints require HTTPS (HTTP is allowed only on loopback).
+Credential-bearing URLs and keys containing whitespace are rejected. Persistence
+redaction includes the vLLM key even when it came only from `.env`.
 
 Raw OpenAI `usage.prompt_tokens`, `usage.completion_tokens` and
 `usage.total_tokens` are captured before DSPy parsing, including parse failures.
