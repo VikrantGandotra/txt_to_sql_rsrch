@@ -30,6 +30,7 @@ from src.agent_state import AgentState
 from src.evaluation_checkpoint import EvaluationCheckpoint, atomic_write_json
 from src.graph_pruner import DatabaseGraphPruner
 from src.sql_agent_graph import build_sql_graph
+from src.telemetry_errors import exception_details
 
 BIRD_SEPARATOR = "\t----- bird -----\t"
 FORMAL_MODEL = "openrouter/qwen/qwen-2.5-7b-instruct"
@@ -198,9 +199,10 @@ def run_bird_evaluation(
         "source_sha256": {name: _file_hash(Path(__file__).parent / name) for name in (
             "bird_evaluator.py", "evaluation_checkpoint.py", "agent_state.py", "graph_pruner.py",
             "sql_agent_graph.py", "dspy_modules.py", "dspy_telemetry.py",
-            "dspy_verifier.py", "generative_verifier.py")},
+            "dspy_verifier.py", "generative_verifier.py", "telemetry_errors.py")},
     }
 
+    manifest["source_sha256"]["run_ablation.py"] = _file_hash(Path(__file__).resolve().parents[1] / "run_ablation.py")
     results = []
     baseline_results = []
     with EvaluationCheckpoint(checkpoint_destination, manifest, resume=resume,
@@ -228,6 +230,7 @@ def run_bird_evaluation(
             pruning_latency = None
             metrics = _unknown_query_metrics()
             error_message = None
+            failure_details = None
             sql = None
             baseline_sql = None
             candidates = []
@@ -353,6 +356,7 @@ def run_bird_evaluation(
                 else:
                     metrics.update(getattr(error, "mars_metrics", None) or {})
                 error_message = f"{type(error).__name__}: {error}"
+                failure_details = exception_details(error, "selection" if candidates else "setup")
             elapsed = perf_counter() - started
             metrics.update({
                 "question_id": question_id,
@@ -361,6 +365,13 @@ def run_bird_evaluation(
                 "generation_failed": not any(candidate.get("final_sql") for candidate in candidates),
                 "selection_failed": bool(candidates) and not bool(sql),
                 "error": error_message,
+                "error_details": failure_details,
+                "final_sql": sql,
+                "configuration": {key: manifest[key] for key in (
+                    "model_name", "cross_model_fallback", "prompt_mode", "selection_mode",
+                    "num_candidates", "max_turns", "max_workers", "temperature", "top_p", "seed",
+                    "verification_samples", "execution_timeout_seconds", "compiled_generator_sha256",
+                    "compiled_verifier_sha256")},
                 "pruning_latency_seconds": pruning_latency if pruning_latency is not None else elapsed,
                 "end_to_end_latency_seconds": elapsed,
                 "candidates": candidates,
@@ -375,6 +386,33 @@ def run_bird_evaluation(
             baseline_result = (_score_prediction(item, db_dir, baseline_predictions[question_id], execution_timeout)
                                if selection_mode != "self_consistency" else None)
             metrics.update(execution_correct=result["correct"], execution_error=result["error"])
+            reasons = []
+            if metrics["generation_failed"]:
+                reasons.append("generation_failed")
+            elif metrics["selection_failed"]:
+                reasons.append("selection_failed")
+            if not metrics["accounting_complete"]:
+                reasons.append("incomplete_accounting")
+            if result["error"]:
+                reasons.append("execution_scoring_error")
+            elif not result["correct"]:
+                reasons.append("execution_result_mismatch")
+            metrics.update(
+                status=("generation_failed" if metrics["generation_failed"] else
+                        "selection_failed" if metrics["selection_failed"] else
+                        "scoring_failed" if result["error"] else
+                        "correct" if result["correct"] else "incorrect"),
+                degradation_reasons=reasons,
+                execution_error_details=result.get("error_details"),
+                total_rollout_turns=metrics.get("turn") if candidates else 0,
+                selected_trajectory_turns=metrics.get("selected_turn"),
+                selected_self_correction_cycles=next((candidate["metrics"].get("self_correction_cycles")
+                    for candidate in candidates if candidate["candidate_index"] == metrics.get("selected_candidate_index")), None),
+                per_candidate_turns=[{"candidate_index": candidate["candidate_index"],
+                                      "turn": candidate["turn"],
+                                      "generator_calls_attempted": candidate.get("generator_calls_attempted")}
+                                     for candidate in candidates],
+            )
             results.append(result)
             if baseline_result is not None:
                 baseline_results.append(baseline_result)
@@ -385,7 +423,7 @@ def run_bird_evaluation(
 
         atomic_write_json(destination, predictions)
         report = {
-            "schema_version": 3,
+            "schema_version": 4,
             "manifest": manifest,
             "predictions_path": str(destination.resolve()),
             "checkpoint_path": str(checkpoint_destination.resolve()),
@@ -428,6 +466,7 @@ def _run_candidate(app, state):
     metrics = _unknown_query_metrics()
     final_state = {}
     error = None
+    details = None
     started = perf_counter()
     try:
         final_state = app.invoke(state)
@@ -436,12 +475,16 @@ def _run_candidate(app, state):
         final_state = getattr(failure, "mars_state", None) or {}
         metrics.update(getattr(failure, "mars_metrics", None) or {})
         error = f"{type(failure).__name__}: {failure}"
+        details = exception_details(failure, "generation")
     sql = (final_state.get("final_sql") or "").strip() or None
     if sql is None and error is None:
         error = "Trajectory did not produce an executable explicit final_answer"
     return {
         "candidate_index": state["candidate_index"], "rollout_seed": state["rollout_seed"],
         "final_sql": sql, "history": final_state.get("history", []),
+        "last_attempted_sql": final_state.get("current_sql"),
+        "error_details": details,
+        "generator_calls_attempted": metrics.get("generator_calls_attempted"),
         "logical_plan": str(final_state.get("plan") or ""),
         "turn": final_state.get("turn", metrics.get("turn")),
         "error": error, "metrics": metrics, "wall_latency_seconds": perf_counter() - started,
@@ -492,9 +535,11 @@ def _execute_candidates(candidates, db_path, timeout):
                     "row_count_semantics": "distinct_rows_for_BIRD_EX",
                 }
             except (sqlite3.Error, OSError, ValueError, TypeError) as error:
-                cache[sql] = {"error": f"{type(error).__name__}: {error}"}
+                cache[sql] = {"error": f"{type(error).__name__}: {error}",
+                              "error_details": exception_details(error, "candidate_execution")}
         candidate["execution"] = deepcopy(cache[sql])
         if candidate["execution"]["error"]:
+            candidate["last_attempted_sql"] = sql
             candidate["error"] = candidate["execution"]["error"]
             candidate["final_sql"] = None
 
@@ -671,6 +716,7 @@ def _execute_result_set(db_path: Path, sql: str, timeout_seconds: float, *, dead
 def _score_prediction(item, db_dir, prediction, timeout_seconds):
     matched = False
     error_message = None
+    details = None
     try:
         if not isinstance(prediction, str) or BIRD_SEPARATOR not in prediction:
             raise ValueError("Missing or malformed prediction")
@@ -684,7 +730,9 @@ def _score_prediction(item, db_dir, prediction, timeout_seconds):
         matched = predicted_rows == gold_rows
     except (sqlite3.Error, OSError, ValueError, KeyError, TypeError) as error:
         error_message = f"{type(error).__name__}: {error}"
-    return {"question_id": str(item["question_id"]), "correct": matched, "error": error_message}
+        details = exception_details(error, "execution_scoring")
+    return {"question_id": str(item["question_id"]), "correct": matched,
+            "error": error_message, "error_details": details}
 
 
 def _score_summary(results):

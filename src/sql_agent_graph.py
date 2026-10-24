@@ -36,6 +36,7 @@ from src.dspy_telemetry import (
     record_stage_metrics,
     summarize_query_metrics,
 )
+from src.telemetry_errors import exception_details
 
 StructuredOutput = TypeVar("StructuredOutput", bound=BaseModel)
 logger = logging.getLogger(__name__)
@@ -447,6 +448,7 @@ class SQLAgentGraph:
     def verifier(self, state: AgentState) -> dict[str, Any]:
         """Execute and observe each action; only explicit final submissions become answers."""
         sql = state["current_sql"] or ""
+        execution_error_details = None
         try:
             if not sql.strip():
                 raise sqlite3.OperationalError("The generated SQL query is empty")
@@ -493,6 +495,7 @@ class SQLAgentGraph:
                 columns=columns,
             )
         except sqlite3.Error as error:
+            execution_error_details = exception_details(error, "sqlite_execution")
             result = VerificationResult(
                 is_valid=False,
                 error_message=f"{type(error).__name__}: {error}",
@@ -513,6 +516,7 @@ class SQLAgentGraph:
                 "action": state["current_action"], "rationale": state["rationale"],
                 "sql": sql, "observation": observation,
                 "final_action_forced": state.get("final_action_forced", False),
+                "error_details": execution_error_details,
             }],
             "sql_execution_count": state.get("sql_execution_count", 0) + 1,
             "is_valid": result.is_valid,
@@ -599,6 +603,7 @@ class SQLAgentGraph:
                         )
                         query_metrics.update({
                             "turn": final_state["turn"],
+                            "generator_calls_attempted": sum(stage["stage"] == "generator" for stage in stage_metrics),
                             "sql_execution_count": final_state.get("sql_execution_count", 0),
                             "self_correction_cycles": corrections,
                             "termination_reason": "model_error" if failure else final_state.get("termination_reason"),

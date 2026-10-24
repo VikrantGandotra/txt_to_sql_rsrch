@@ -58,7 +58,7 @@ class AgentState(TypedDict):
     current_sql: Optional[str]
     observation: Optional[str]
     history: List[Dict[str, Any]]
-    turn: int  # Completed Generator decisions, including explicit final submission.
+    turn: int  # Completed Generator decisions; failed model calls are counted separately in metrics.
     max_turns: int
     is_valid: bool
     final_sql: Optional[str]

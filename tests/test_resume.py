@@ -82,6 +82,7 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(restored["resumed_questions"], 3)
         self.assertEqual(restored["totals"], report["totals"])
         self.assertEqual(restored["self_consistency"], report["self_consistency"])
+        self.assertEqual(restored["queries"], report["queries"])
         self.assertEqual(len(json.loads(self.output.read_text())), 3)
 
     def test_failed_questions_remain_committed_and_in_denominator(self):

@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 import tempfile
 
+from src.telemetry_errors import redact_payload
+
 
 def _encoded(value):
     return json.dumps(value, sort_keys=True, ensure_ascii=False, allow_nan=False).encode("utf-8")
@@ -29,7 +31,7 @@ def atomic_write_json(path, value):
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            json.dump(value, handle, indent=2, ensure_ascii=False, allow_nan=False)
+            json.dump(redact_payload(value), handle, indent=2, ensure_ascii=False, allow_nan=False)
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
@@ -145,6 +147,7 @@ class EvaluationCheckpoint:
                 self.records[ids[index]] = record
 
     def append(self, record):
+        record = redact_payload(record)
         expected = self.manifest["question_ids"][len(self.records)]
         if record["question_id"] != expected:
             raise ValueError("Checkpoint must commit in dataset order")

@@ -127,6 +127,7 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
             "sql": JOIN_SQL, "observation": result["observation"],
             "action": "final_answer", "rationale": "Use the schema and previous database observation.",
             "final_action_forced": False,
+            "error_details": None,
         }])
         observation = self.observation(result)
         self.assertEqual(observation.row_count, 2)
@@ -325,6 +326,10 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertEqual(result["termination_reason"], "invalid_final_answer")
         self.assertTrue(result["history"][-1]["final_action_forced"])
         self.assertEqual(len(client.calls), 2)
+        self.assertEqual(result["metrics"]["generator_calls_attempted"], 1)
+        details = result["history"][-1]["error_details"]
+        self.assertEqual(details["phase"], "sqlite_execution")
+        self.assertIn("no such column", details["traceback"])
 
     def test_baseline_feedback_uses_plain_sql_and_observation_text(self):
         sql = 'SELECT name AS "Student Name" FROM students'

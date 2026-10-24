@@ -52,6 +52,12 @@ def main(argv=None):
     print(f"All-candidate + selector tokens: {totals['total_tokens']}; cost USD: {totals['cost_usd']}")
     print(f"Predictions: {output}")
     print(f"Trajectories, selection, configuration and exact metrics: {Path(output).with_suffix('.metrics.json')}")
+    # Save the complete evidence first, then signal invalid infrastructure runs
+    # to subprocess wrappers. Ordinary incorrect SQL remains an EX outcome.
+    if not totals.get("accounting_complete"):
+        raise RuntimeError("Evaluation saved, but provider token/cost accounting is incomplete; inspect per-query errors before continuing the matrix")
+    if report["queries"] and all(not query.get("final_sql") for query in report["queries"]):
+        raise RuntimeError("Evaluation saved, but no question produced selected final SQL")
 
 
 if __name__ == "__main__":

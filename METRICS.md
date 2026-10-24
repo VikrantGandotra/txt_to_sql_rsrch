@@ -230,3 +230,32 @@ Earlier probes still continue, and SQLite must accept the submitted SQL before
 it becomes a prediction. This budget policy applies equally to compiled and
 uncompiled generation and to training rollouts; it adds no extra model call.
 An invalid, empty, or missing model response can still fail generation.
+
+Telemetry schema 4 makes each `predict.metrics.json` query record self-contained:
+`final_sql`, `configuration`, `execution_correct`, `status`, and
+`degradation_reasons` accompany token fields. `turn` remains the sum across
+rollouts for compatibility; `total_rollout_turns`, `selected_trajectory_turns`,
+`selected_self_correction_cycles`, and `per_candidate_turns` distinguish total
+work from the selected answer. Each candidate retains completed decisions,
+`generator_calls_attempted` (including a failed generator invocation), history,
+last attempted SQL, and its termination reason. Missing provider usage remains
+null with `accounting_complete: false`; `observed_*` retains measurable usage.
+
+Raised generation/setup/selection/scoring exceptions and caught SQLite errors
+include phase, exception type, message, and chained traceback without frame
+locals. `telemetry_errors.py` redacts configured credentials and common API-key
+and Bearer patterns. Both checkpoint append and atomic final writes apply
+redaction, including nested stage errors. This is not general anonymization:
+questions, SQL, database samples and local source paths remain research data.
+
+Completed question records are fsynced into `predict.checkpoint.jsonl` before
+the progress message. Final JSON files are atomically published after the batch;
+resume reconstructs them from verified journal records. An interrupted in-flight
+question is not committed: its unfinished calls/charges cannot be fully recovered
+from this question-level journal. Keep provider billing/trace records to account
+for that work. Changed source/configuration is rejected on resume.
+
+`run_ablation.py` now exits nonzero after publishing a report with incomplete
+accounting or no selected SQL for the entire batch. Incorrect-but-executable
+answers still count toward EX normally. This detects invalid completed runs;
+it does not stop the evaluator immediately on the first provider billing error.

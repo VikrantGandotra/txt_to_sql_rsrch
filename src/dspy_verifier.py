@@ -14,6 +14,7 @@ from time import perf_counter
 from typing import Any
 
 import dspy
+from src.telemetry_errors import exception_details
 from src.dspy_modules import provider_model_id
 
 from src.dspy_telemetry import (
@@ -210,7 +211,8 @@ def select_with_dspy(
                             observation.update(output=sample)
                     except Exception as error:
                         failure = f"{type(error).__name__}: {error}"
-                        errors.append({"candidate_index": index, "sample_index": sample_index, "error": failure})
+                        errors.append({"candidate_index": index, "sample_index": sample_index, "error": failure,
+                                       "error_details": exception_details(error, "dspy_selection")})
                     finally:
                         stage = record_stage_metrics("dspy_verifier", sample_index + 1, responses,
                                                      perf_counter() - call_started, failure)

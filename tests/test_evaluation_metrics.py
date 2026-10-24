@@ -81,6 +81,13 @@ class EvaluationMetricsTests(unittest.TestCase):
         self.assertEqual(first["trace_id"], "example-trace-id")
         self.assertFalse(first["fallback_used"])
         self.assertTrue(first["execution_correct"])
+        self.assertEqual(first["final_sql"], self.items[0]["SQL"])
+        self.assertEqual(first["status"], "correct")
+        self.assertEqual(first["configuration"]["selection_mode"], "self_consistency")
+        self.assertEqual(first["configuration"]["prompt_mode"], "uncompiled_dspy")
+        self.assertEqual(first["total_rollout_turns"], 1)
+        self.assertEqual(first["selected_trajectory_turns"], 1)
+        self.assertEqual(first["per_candidate_turns"][0]["turn"], 1)
         self.assertGreaterEqual(first["end_to_end_latency_seconds"], first["pruning_latency_seconds"])
         self.assertEqual(report["totals"]["prompt_tokens"], 1442)
         self.assertEqual(report["totals"]["completion_tokens"], 48)
@@ -106,6 +113,11 @@ class EvaluationMetricsTests(unittest.TestCase):
         failed = report["queries"][0]
         self.assertTrue(failed["fallback_used"])
         self.assertIn("Provider request failed", failed["error"])
+        self.assertEqual(failed["status"], "generation_failed")
+        self.assertIn("incomplete_accounting", failed["degradation_reasons"])
+        details = failed["candidates"][0]["error_details"]
+        self.assertEqual(details["type"], "RuntimeError")
+        self.assertIn("Traceback", details["traceback"])
         self.assertEqual(failed["observed_prompt_tokens"], 721)
         self.assertEqual(failed["self_correction_cycles"], 1)
         self.assertIsNone(report["totals"]["prompt_tokens"])
@@ -128,6 +140,17 @@ class EvaluationMetricsTests(unittest.TestCase):
         self.assertEqual(report["totals"]["observed_prompt_tokens"], 721)
         self.assertIsNone(report["totals"]["prompt_tokens"])
         self.assertFalse((self.db_dir / "missing" / "missing.sqlite").exists())
+        self.assertEqual(report["queries"][0]["error_details"]["phase"], "setup")
+
+    def test_executable_wrong_result_is_explicitly_incorrect_without_invented_error(self):
+        report, _, _ = self.run_with_responses([
+            {"final_sql": "SELECT name FROM users WHERE age = 30", "metrics": self.measured()},
+        ], limit=1)
+        query = report["queries"][0]
+        self.assertEqual(query["status"], "incorrect")
+        self.assertEqual(query["degradation_reasons"], ["execution_result_mismatch"])
+        self.assertIsNone(query["execution_error"])
+        self.assertEqual(query["final_sql"], "SELECT name FROM users WHERE age = 30")
 
     def test_empty_limit_writes_empty_complete_report_without_model_initialization(self):
         report, invoke, factory = self.run_with_responses([], limit=0)

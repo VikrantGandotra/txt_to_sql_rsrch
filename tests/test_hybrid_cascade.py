@@ -244,7 +244,8 @@ class HybridCascadeBatchTests(unittest.TestCase):
             self.assertEqual(kwargs["verification_samples"], 2)
             Path(args[2]).with_suffix(".metrics.json").write_text(json.dumps({
                 "execution_accuracy": 100, "correct": 1, "total": 1,
-                "totals": {"total_tokens": 10, "cost_usd": 0.001},
+                "totals": {"total_tokens": 10, "cost_usd": 0.001, "accounting_complete": True},
+                "queries": [{"final_sql": "SELECT name FROM users"}],
             }), encoding="utf-8")
         with patch("run_ablation.run_bird_evaluation", side_effect=evaluate) as evaluate_mock, \
              redirect_stdout(StringIO()) as output:
