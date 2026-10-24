@@ -109,7 +109,7 @@ def _token_count(value: Any) -> int | None:
     return int(number) if number is not None and number.is_integer() else None
 
 
-def make_response_record(response: Any, configured_model: str, elapsed: float) -> dict[str, Any]:
+def make_response_record(response: Any, configured_model: str, elapsed: float, *, backend="openrouter") -> dict[str, Any]:
     """Normalize a provider response for both DSPy and direct API accounting."""
     usage = _usage_dict(_get(response, "usage"))
     return {
@@ -117,13 +117,14 @@ def make_response_record(response: Any, configured_model: str, elapsed: float) -
         "usage": usage,
         "model": _get(response, "model") or configured_model,
         "cost": _nonnegative_number(usage.get("cost")),
+        "backend": backend,
         "latency_seconds": elapsed,
     }
 
 
-def _record_response(response: Any, configured_model: str, elapsed: float) -> None:
+def _record_response(response: Any, configured_model: str, elapsed: float, *, backend="openrouter") -> None:
     records = _response_records.get()
-    record = make_response_record(response, configured_model, elapsed)
+    record = make_response_record(response, configured_model, elapsed, backend=backend)
     if records is not None:
         records.append(record)
     for observer in _response_observers.get():
@@ -141,16 +142,20 @@ class OpenRouterLM(dspy.LM):
 
     forward_contract = "legacy"
 
+    def __init__(self, *args, telemetry_backend="openrouter", **kwargs):
+        super().__init__(*args, **kwargs)
+        self.telemetry_backend = telemetry_backend
+
     def forward(self, prompt=None, messages=None, **kwargs):
         started = perf_counter()
         response = super().forward(prompt=prompt, messages=messages, **kwargs)
-        _record_response(response, self.model, perf_counter() - started)
+        _record_response(response, self.model, perf_counter() - started, backend=self.telemetry_backend)
         return response
 
     async def aforward(self, prompt=None, messages=None, **kwargs):
         started = perf_counter()
         response = await super().aforward(prompt=prompt, messages=messages, **kwargs)
-        _record_response(response, self.model, perf_counter() - started)
+        _record_response(response, self.model, perf_counter() - started, backend=self.telemetry_backend)
         return response
 
 
@@ -200,12 +205,15 @@ def generation_telemetry(records: list[dict[str, Any]]) -> dict[str, Any]:
     if usage_details:
         update["usage_details"] = usage_details
 
-    # Only OpenRouter's account charge is authoritative here. LiteLLM's cost
-    # estimate and upstream-provider breakdowns can represent other amounts.
-    costs = [_nonnegative_number(usage.get("cost")) for usage in usages]
+    # OpenRouter supplies an API charge. Self-hosted vLLM has no per-request
+    # API fee; its zero explicitly excludes GPU rental and operating costs.
+    # Never substitute LiteLLM's public-model price estimate for either basis.
+    costs = [0.0 if record.get("backend") == "vllm" else _nonnegative_number(usage.get("cost"))
+             for record, usage in zip(records, usages)]
     if all(cost is not None for cost in costs):
         update["cost_details"] = {"total": sum(costs)}
-        metadata["cost_source"] = "openrouter"
+        metadata["cost_source"] = ("self_hosted_api_fee_excludes_gpu_rental"
+                                   if all(record.get("backend") == "vllm" for record in records) else "openrouter")
     return update
 
 
@@ -253,6 +261,7 @@ def record_stage_metrics(
         "latency_seconds": latency_seconds,
         "error": error,
         "calls": calls,
+        "cost_source": metadata["cost_source"],
     }
     stages = _query_stages.get()
     if stages is not None:

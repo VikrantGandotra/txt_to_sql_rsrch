@@ -259,3 +259,34 @@ for that work. Changed source/configuration is rejected on resume.
 accounting or no selected SQL for the entire batch. Incorrect-but-executable
 answers still count toward EX normally. This detects invalid completed runs;
 it does not stop the evaluator immediately on the first provider billing error.
+
+Set `VLLM_BASE_URL=https://YOUR-POD-ID-8000.proxy.runpod.net/v1` to route both
+DSPy (generation, compilation and rating selection) and the raw graph client to
+RunPod vLLM. A blank value preserves OpenRouter. `llm_endpoint.py` normalizes
+the URL, uses `RUNPOD_DUMMY_KEY`, and maps the pinned OpenRouter checkpoint to
+`Qwen/Qwen2.5-7B-Instruct`. Serve that checkpoint under that exact model name.
+The DSPy transport uses `openai/` with the custom base URL. Model validation
+recognizes both checkpoint names; cross-model fallback remains disabled.
+No separate ChatOpenAI initializer exists in this project: LangChain orchestrates
+the graph around the compatible OpenAI client and DSPy predictors.
+
+Raw OpenAI `usage.prompt_tokens`, `usage.completion_tokens` and
+`usage.total_tokens` are captured before DSPy parsing, including parse failures.
+vLLM's missing monetary usage field does not discard tokens: its API fee is
+recorded as zero with `cost_source=self_hosted_api_fee_excludes_gpu_rental`.
+Manifest and query configuration explicitly record
+`cost_scope=api_usage_fee_excludes_gpu_rental`. This is NOT the RunPod compute
+cost. Record GPU rental/uptime separately for comparisons of total USD cost.
+Missing token usage still stays null and fails accounting validation; there is
+no unconditional guarantee of counts when the server fails to return usage.
+Backend, base URL, served model and cost scope are checkpoint controls; resume
+rejects a transport change rather than mixing OpenRouter and vLLM measurements.
+
+The CLI default outputs are now
+`results/runpod_vllm_test_01/<prompt_mode>/<selection>/predict.json` with adjacent
+metrics and checkpoint files. Explicit `--output` still takes precedence, and
+existing files are never silently overwritten. Set the vLLM URL before running:
+
+```powershell
+python run_ablation.py --dev-json data\dev.json --db-dir data\dev_databases --limit 3 --selection self_consistency --prompt-mode uncompiled_dspy
+```

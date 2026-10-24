@@ -5,7 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
 class Settings(BaseSettings):
-    openrouter_api_key: str
+    openrouter_api_key: str = ""
+    vllm_base_url: str = ""
     langfuse_public_key: str
     langfuse_secret_key: str
     langfuse_base_url: str 

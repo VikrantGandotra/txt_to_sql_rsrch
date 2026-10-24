@@ -31,6 +31,7 @@ from src.evaluation_checkpoint import EvaluationCheckpoint, atomic_write_json
 from src.graph_pruner import DatabaseGraphPruner
 from src.sql_agent_graph import build_sql_graph
 from src.telemetry_errors import exception_details
+from src.llm_endpoint import resolve_llm_endpoint
 
 BIRD_SEPARATOR = "\t----- bird -----\t"
 FORMAL_MODEL = "openrouter/qwen/qwen-2.5-7b-instruct"
@@ -199,10 +200,11 @@ def run_bird_evaluation(
         "source_sha256": {name: _file_hash(Path(__file__).parent / name) for name in (
             "bird_evaluator.py", "evaluation_checkpoint.py", "agent_state.py", "graph_pruner.py",
             "sql_agent_graph.py", "dspy_modules.py", "dspy_telemetry.py",
-            "dspy_verifier.py", "generative_verifier.py", "telemetry_errors.py")},
+            "dspy_verifier.py", "generative_verifier.py", "telemetry_errors.py", "llm_endpoint.py", "config.py")},
     }
 
     manifest["source_sha256"]["run_ablation.py"] = _file_hash(Path(__file__).resolve().parents[1] / "run_ablation.py")
+    manifest.update(resolve_llm_endpoint(FORMAL_MODEL).manifest())
     results = []
     baseline_results = []
     with EvaluationCheckpoint(checkpoint_destination, manifest, resume=resume,
@@ -371,7 +373,7 @@ def run_bird_evaluation(
                     "model_name", "cross_model_fallback", "prompt_mode", "selection_mode",
                     "num_candidates", "max_turns", "max_workers", "temperature", "top_p", "seed",
                     "verification_samples", "execution_timeout_seconds", "compiled_generator_sha256",
-                    "compiled_verifier_sha256")},
+                    "compiled_verifier_sha256", "llm_backend", "llm_base_url", "served_model", "cost_scope")},
                 "pruning_latency_seconds": pruning_latency if pruning_latency is not None else elapsed,
                 "end_to_end_latency_seconds": elapsed,
                 "candidates": candidates,

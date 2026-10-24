@@ -31,7 +31,7 @@ def main(argv=None):
     parser.add_argument("--resume", action="store_true",
                         help="Resume the same output's durable question checkpoint")
     args = parser.parse_args(argv)
-    output = args.output or str(Path("artifacts") / "ablation" / args.selection / "predict.json")
+    output = args.output or str(Path("results") / "runpod_vllm_test_01" / args.prompt_mode / args.selection / "predict.json")
     run_bird_evaluation(
         args.dev_json, args.db_dir, output, args.limit,
         num_candidates=args.candidates, selection_mode=args.selection,

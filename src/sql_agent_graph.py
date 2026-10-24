@@ -37,6 +37,7 @@ from src.dspy_telemetry import (
     summarize_query_metrics,
 )
 from src.telemetry_errors import exception_details
+from src.llm_endpoint import resolve_llm_endpoint
 
 StructuredOutput = TypeVar("StructuredOutput", bound=BaseModel)
 logger = logging.getLogger(__name__)
@@ -120,6 +121,7 @@ class SQLAgentGraph:
         if execution_timeout <= 0:
             raise ValueError("execution_timeout must be positive")
         self.client = client
+        self._llm_endpoint = None
         self.model_name = FORMAL_MODEL if formal else model_name
         self.prompt_mode = "baseline" if client is not None else prompt_mode
         self.temperature = temperature
@@ -269,9 +271,11 @@ class SQLAgentGraph:
 
             if self._langfuse_client is None:
                 self._initialize_langfuse()
+            self.model_name = self.model_name or settings.model_name
+            self._llm_endpoint = resolve_llm_endpoint(self.model_name, settings=settings)
             self.client = OpenAI(
-                api_key=settings.openrouter_api_key,
-                base_url="https://openrouter.ai/api/v1",
+                api_key=self._llm_endpoint.api_key,
+                base_url=self._llm_endpoint.base_url,
                 timeout=60.0,
                 max_retries=2,
                 default_headers={
@@ -279,7 +283,6 @@ class SQLAgentGraph:
                     "X-Title": "MARS-SQL Serverless Ablation",
                 },
             )
-            self.model_name = self.model_name or settings.model_name
 
         # Both model-output schemas are flat objects. Strict structured outputs
         # require every property, including nullable ones, and forbid extra keys.
@@ -301,7 +304,7 @@ class SQLAgentGraph:
             *messages[1:],
         ]
         request = {
-            "model": provider_model_id(self.model_name),
+            "model": self._llm_endpoint.model if self._llm_endpoint else provider_model_id(self.model_name),
             "messages": request_messages,
             "temperature": self.temperature,
             "top_p": self.top_p,
@@ -344,7 +347,8 @@ class SQLAgentGraph:
             raise
         finally:
             elapsed = perf_counter() - started
-            responses = [make_response_record(response, self.model_name, elapsed)] if response is not None else []
+            responses = [make_response_record(response, self.model_name, elapsed,
+                         backend=self._llm_endpoint.backend if self._llm_endpoint else "openrouter")] if response is not None else []
             record_stage_metrics(name.removeprefix("mars_"), turn, responses, elapsed, failure)
 
     def decomposer(self, state: AgentState) -> dict[str, Any]:

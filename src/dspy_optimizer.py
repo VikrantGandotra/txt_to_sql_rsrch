@@ -232,13 +232,15 @@ def _compilation_accounting(destination, stage_name, details=None):
 
 
 def _provenance(trainset, training_source: str):
+    from src.llm_endpoint import resolve_llm_endpoint
     # Hash labels and schemas; do not serialize gold SQL/DB paths into metadata.
     digest = hashlib.sha256(json.dumps([
         {"question": row.question, "schema_ddl": row.schema_ddl, "gold": row.sql_query}
         for row in trainset
     ], sort_keys=True).encode("utf-8")).hexdigest()
     return {"training_source": training_source, "training_examples": len(trainset),
-            "training_sha256": digest, "model_name": VERIFIER_MODEL}
+            "training_sha256": digest, "model_name": VERIFIER_MODEL,
+            **resolve_llm_endpoint(VERIFIER_MODEL).manifest()}
 
 
 def compile_program(

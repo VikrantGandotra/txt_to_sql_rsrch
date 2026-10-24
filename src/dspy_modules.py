@@ -7,6 +7,7 @@ from typing import Literal
 import dspy
 
 from src.dspy_telemetry import OpenRouterLM
+from src.llm_endpoint import canonical_model_id, resolve_llm_endpoint
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 COMPILED_MODEL_PATH = PROJECT_ROOT / "compiled_dspy_model.json"
@@ -15,10 +16,7 @@ FORMAL_MODEL = "openrouter/qwen/qwen-2.5-7b-instruct"
 
 def provider_model_id(model: str) -> str:
     """Remove transport prefixes before sending or comparing provider IDs."""
-    for prefix in ("openrouter/", "openai/"):
-        if model.startswith(prefix):
-            return model[len(prefix):]
-    return model
+    return canonical_model_id(model)
 
 
 class DecomposerSignature(dspy.Signature):
@@ -121,7 +119,7 @@ class TextToSQLProgram(dspy.Module):
 
 def create_dspy_lm(lm=None, *, model_name: str | None = None,
                    temperature: float = 0.8, top_p: float = 0.7, formal: bool = False):
-    """Create an independent OpenRouter LM without mutating global DSPy settings.
+    """Create an independent compatible LM without mutating global DSPy settings.
 
     The openrouter/ prefix selects LiteLLM's native OpenRouter transport; it is not
     part of the model ID sent to OpenRouter. Inject an LM for offline tests.
@@ -131,10 +129,12 @@ def create_dspy_lm(lm=None, *, model_name: str | None = None,
         selected_model = model_name or (FORMAL_MODEL if formal else settings.model_name)
         if formal and provider_model_id(selected_model) != provider_model_id(FORMAL_MODEL):
             raise ValueError(f"Formal evaluation requires model {FORMAL_MODEL}")
+        endpoint = resolve_llm_endpoint(selected_model, settings=settings)
         lm = OpenRouterLM(
-            model=f"openrouter/{provider_model_id(selected_model)}",
-            api_key=settings.openrouter_api_key,
-            api_base="https://openrouter.ai/api/v1",
+            model=f"{'openai' if endpoint.backend == 'vllm' else 'openrouter'}/{endpoint.model}",
+            api_key=endpoint.api_key,
+            api_base=endpoint.base_url,
+            telemetry_backend=endpoint.backend,
             temperature=temperature,
             top_p=top_p,
             max_tokens=2048,
