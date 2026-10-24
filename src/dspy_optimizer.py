@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import os
+import random
 import sqlite3
 import sys
 from time import perf_counter
@@ -204,7 +205,7 @@ def _protect_inputs(destination, *input_paths):
 
 
 @contextmanager
-def _compilation_accounting(destination, stage_name):
+def _compilation_accounting(destination, stage_name, details=None):
     """Keep paid calls measurable even when BootstrapFewShot fails."""
     started = perf_counter()
     failure = None
@@ -223,6 +224,7 @@ def _compilation_accounting(destination, stage_name):
             elapsed = perf_counter() - started
             row = record_stage_metrics(stage_name, 0, responses, elapsed, failure)
             metrics = summarize_query_metrics([row], turn=0, latency_seconds=elapsed)
+            metrics.update(details or {})
             metrics["error"] = failure
             report_path = destination.with_suffix(".compilation.metrics.json")
             report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -290,6 +292,8 @@ def compile_program(
 def verifier_metric(example, prediction, trace=None) -> bool:
     """EX-derived training labels stay outside the verifier's input signature."""
     try:
+        if isinstance(prediction.score, bool):
+            return False
         score = float(prediction.score)
         return 0 <= score <= 1 and (score >= 0.5) == bool(example.correct)
     except (TypeError, ValueError, AttributeError):
@@ -351,6 +355,24 @@ def build_verifier_trainset(trainset, training_trajectories=None):
     return examples
 
 
+def balance_verifier_examples(examples, seed=0):
+    """Deterministically interleave shuffled training-only EX classes.
+
+    Labels control offline sampling and metric acceptance, never model inputs.
+    Return a fresh list without changing the caller's dataset order.
+    """
+    groups = {False: [], True: []}
+    for example in examples:
+        groups[bool(example.correct)].append(example)
+    if not all(groups.values()):
+        raise ValueError("Verifier training requires both correct and incorrect executable trajectories")
+    rng = random.Random(seed)
+    for group in groups.values():
+        rng.shuffle(group)
+    return [groups[label][index] for index in range(max(map(len, groups.values())))
+            for label in (False, True) if index < len(groups[label])]
+
+
 def compile_verifier(
     output_path=COMPILED_VERIFIER_PATH, *, lm=None, train_json=None, db_dir=None,
     training_trajectories=None, limit=None,
@@ -366,19 +388,49 @@ def compile_verifier(
     with TemporaryDirectory(prefix="mars_dspy_verifier_training_") as directory:
         trainset = (build_bird_trainset(train_json, db_dir, limit) if train_json is not None
                     else build_trainset(Path(directory) / "training.sqlite"))
-        labeled = build_verifier_trainset(trainset, training_trajectories)
-        optimizer = dspy.BootstrapFewShot(metric=verifier_metric, max_bootstrapped_demos=8,
+        labeled = balance_verifier_examples(build_verifier_trainset(trainset, training_trajectories))
+        counts = {label: sum(bool(item.correct) == label for item in labeled) for label in (False, True)}
+        targets = {label: min(4, counts[label]) for label in counts}
+        accepted = {False: 0, True: 0}
+        details = {"bootstrap_strategy": "class_balanced_quotas", "sampling_seed": 0,
+                   "verifier_training_examples": len(labeled), "metric_evaluations": 0,
+                   "training_class_counts": {"correct": counts[True], "incorrect": counts[False]},
+                   "demonstration_targets": {"correct": targets[True], "incorrect": targets[False]},
+                   "accepted_demonstrations": {"correct": 0, "incorrect": 0}}
+
+        def balanced_metric(example, prediction, trace=None):
+            label = bool(example.correct)
+            details["metric_evaluations"] += 1
+            if accepted[label] >= targets[label] or not verifier_metric(example, prediction, trace):
+                return False
+            accepted[label] += 1
+            details["accepted_demonstrations"]["correct" if label else "incorrect"] = accepted[label]
+            return True
+
+        optimizer = dspy.BootstrapFewShot(metric=balanced_metric, max_bootstrapped_demos=sum(targets.values()),
                                          max_labeled_demos=0, max_rounds=1, max_errors=4)
-        with _compilation_accounting(destination, "verifier_compilation") as responses, dspy.context(
+        with _compilation_accounting(destination, "verifier_compilation", details) as responses, dspy.context(
             lm=active_lm, adapter=dspy.ChatAdapter(use_json_adapter_fallback=False),
         ):
             compiled = optimizer.compile(TrajectoryVerifier(), trainset=labeled)
-    if not compiled.judge.demos or {float(demo.score) >= 0.5 for demo in compiled.judge.demos} != {True, False}:
-        raise RuntimeError("Verifier compilation must learn demonstrations of both correct and incorrect trajectories")
+            demo_counts = {label: sum((float(demo.score) >= 0.5) == label for demo in compiled.judge.demos)
+                           for label in targets}
+            details["demonstration_class_counts"] = {"correct": demo_counts[True], "incorrect": demo_counts[False]}
+            if demo_counts != targets:
+                raise RuntimeError(
+                    "Verifier compilation did not meet its class quotas: "
+                    f"correct={demo_counts[True]}/{targets[True]}, "
+                    f"incorrect={demo_counts[False]}/{targets[False]} "
+                    f"after {details['metric_evaluations']} evaluated predictions. "
+                    "Both classes require metric-accepted model ratings; no artifact was saved."
+                )
     elapsed = perf_counter() - started
     stage = record_stage_metrics("verifier_compilation", 0, responses, elapsed)
     manifest = {**_provenance(trainset, str(train_json) if train_json else "synthetic_smoke_only"),
                 "version": VERIFIER_VERSION, "score_kind": "elicited_validity_rating",
+                **details,
+                "training_trajectories_sha256": hashlib.sha256(Path(training_trajectories).read_bytes()).hexdigest()
+                if training_trajectories is not None else None,
                 "compilation_metrics": summarize_query_metrics([stage], turn=0, latency_seconds=elapsed)}
     _save_compiled(compiled, destination, VERIFIER_MANIFEST_KEY, manifest)
     return compiled

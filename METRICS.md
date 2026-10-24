@@ -4,6 +4,64 @@ Run commands from `mars_ablation` in the project virtual environment. The BIRD
 training and development datasets are not included in this repository. Place
 them under `data/` or replace the paths below with their actual locations.
 
+Run the live six-configuration pre-flight with:
+
+```powershell
+python smoke_test.py
+```
+
+This sequentially crosses `uncompiled_dspy`/`compiled_dspy` with
+`self_consistency`/`dspy_verifier`/`hybrid_cascade`, using the first three
+development questions, eight candidates, five iterations and one judge sample.
+The verifier-only condition and Hybrid tie-breaker both use the same compiled
+DSPy rating judge. Its artifact is checked before any subprocess is launched;
+use `--verifier-model` for a nondefault artifact path.
+Override dataset, database and compiled-model paths with `--dev-json`, `--db-dir`,
+`--compiled-model` and `--verifier-model` as needed.
+
+Every invocation creates `artifacts/smoke_test/<UTC timestamp>_<unique ID>/`,
+containing six separate condition directories. Each stores `command.json`,
+`run.log`, predictions, metrics, and a checkpoint. The wrapper stops immediately
+on nonzero subprocess exit, timeout (30 minutes per condition by default),
+missing final SQL, question/selection/execution errors, configuration mismatch,
+or absent/nonfinite token/cost accounting. `--timeout-seconds` overrides the
+per-condition deadline. EX is reported but is not required to be 100%.
+Only six validated runs produce `summary.json` and the message
+`Matrix Smoke Test Fully Passed`. This is a paid live test; ordinary offline
+tests do not invoke it. The three questions do not guarantee that every
+stochastic probe, repair or hybrid tie path occurs.
+
+Batch runs now durably save each fully evaluated question in
+`<output stem>.checkpoint.jsonl`, including predictions, trajectories, exact
+accounting, selection, EX, and the paired baseline. On a restart, run the
+**same original command and output path**, adding `--resume`, for example:
+
+```powershell
+python run_ablation.py --dev-json data\dev.json --db-dir data\dev_databases --limit 1534 --selection hybrid_cascade --prompt-mode compiled_dspy --output artifacts\full\compiled_hybrid\predict.json --resume
+```
+
+Omit `--resume` on the first run. New runs refuse to overwrite existing progress;
+use a fresh output path for a new experiment. Resume checks dataset hash, exact
+question IDs/order, model and sampling controls, compiled-artifact hashes,
+source hashes, dependency versions, and database location/size/mtime. Database
+metadata is an inexpensive change check, not a cryptographic hash of 30 GB.
+Keep those inputs and the checkpoint on persistent storage unchanged.
+
+An OS lock prevents two writers from using the same checkpoint. Each committed
+record has a checksum and is flushed/fsynced. An incomplete final journal line
+is discarded after a crash; corrupt committed records are rejected. Standard
+prediction/metrics JSON files are assembled at completion and atomically
+replaced; resume can rebuild them entirely from the journal without repeating
+model calls or EX scoring for completed questions.
+
+If questions 1 through 1,499 are committed and the process dies during question
+1,500, resume skips the first 1,499 and repeats question 1,500. Candidate-level
+in-flight work is not checkpointed; its already billed API calls may need to be
+repeated and are not recoverable in the local accounting. Completed failures
+and null predictions are also committed and stay in the EX denominator; resume
+does not silently retry only incorrect/failed questions. Older runs lacking a
+journal cannot recover progress lost before their final files were written.
+
 For a 100-question routing and voting smoke test that does not require compiled
 artifacts:
 
@@ -19,8 +77,8 @@ trajectory and a 30-second SQL time budget. Adjust `--workers` to limit
 concurrent provider requests; this changes wall latency, not token expense.
 For a cheaper initial check, use `--limit 1 --candidates 1 --workers 1`.
 
-The root `compiled_dspy_model.json` from the earlier milestone has an obsolete
-SQL-only signature and must be recompiled for the probe/final action format.
+Compiled JSON includes saved Signature instructions. Recompile the generator
+when those instructions change, including the strict identifier-grounding rules.
 To produce the compiled generator and a training-only verifier, use a BIRD
 training split (never the development split):
 
@@ -39,7 +97,20 @@ cost is one rating per eligible trajectory (`--verification-samples 1`). Use
 score is an elicited 0–1 logical-validity rating, not the paper's fine-tuned
 Yes-token probability; label these as distinct selection methods.
 
-For execution voting with a next-token confidence judge only on tied top groups:
+Verifier compilation deterministically shuffles and interleaves training-only
+EX-positive and EX-negative trajectories. Bootstrap acceptance has a quota of
+four demonstrations per class (or fewer when the available class has fewer
+than four examples). Once a class reaches its quota, further examples from that
+class are rejected by the metric so that early stopping cannot fill all eight
+slots with one class. Each saved demo must still be a model-generated rating
+that agrees with its execution-derived training label. Labels are never model
+inputs. The manifest and compilation metrics record class counts, quotas,
+accepted demonstrations and the trajectory-file hash. If either quota cannot
+be met, compilation preserves the prior artifact and records the failure plus
+measured usage; no one-class judge is saved. Reuse collected trajectories when
+retrying compilation rather than collecting them again.
+
+For execution voting with the DSPy rating judge only on tied top groups:
 
 ```powershell
 python run_ablation.py --dev-json data\dev.json --db-dir data\dev_databases --limit 100 --selection hybrid_cascade --prompt-mode uncompiled_dspy
@@ -49,25 +120,33 @@ python run_ablation.py --dev-json data\dev.json --db-dir data\dev_databases --li
 eligibility as `self_consistency`. A unique largest group wins with zero judge
 calls (including a 3-2-2-1 vote); its earliest candidate is selected. When two or
 more groups tie for the highest count, only trajectories in those groups go to
-`generative_verifier`. Lower-count groups and failed executions are excluded.
+`dspy_verifier`. Lower-count groups and failed executions are excluded.
 No eligible candidates means a failed selection without a judge call. A tie
 between judge scores is resolved by the earliest original candidate index.
 
-`generative_verifier` is also available as a standalone selection mode. Unlike
-the existing compiled DSPy rating module, it requests first-token logprobs from
-the pinned model and scores `P(Yes | returned single-token Yes/No alternatives)`.
-Returned case/whitespace variants are combined; both Yes and No probability
-masses must be available. The request uses temperature 1, top-p 1 and a single
-output token. An incomplete ranking or unsupported logprobs fails explicitly,
-with no rating substitution. This is an untrained confidence judge, not an SFT
-validator. It needs no compiled verifier artifact, uses no gold SQL or EX labels,
-and preserves exact provider usage/cost, including failed judge calls.
+Both standalone and Hybrid selection use `TrajectoryVerifier` from
+`src/dspy_verifier.py`: it returns a rationale and an elicited logical-validity
+rating in [0, 1]. Multiple samples are averaged when requested; the highest
+rating wins, with earliest original candidate index breaking ties. This is a
+rating, not a calibrated probability or the paper's SFT Yes-token score. The
+judge receives sanitized trajectories, question, evidence and schema, with no
+gold SQL or EX labels. Partial/invalid rankings fail explicitly and retain
+measured accounting. No API call requests token probabilities.
+
+Both conditions require a compatible `compiled_dspy_verifier.json` (or
+`--verifier-model` path). Hybrid loads the judge only when tied groups need it;
+unique top groups make zero judge calls. The standalone CLI mode
+`generative_verifier` is retired. The legacy Python import delegates to the
+rating selector and emits a deprecation warning; it cannot make old probability
+requests. Historical artifacts are unchanged. Start new experiments after this
+methodology change; old checkpoints cannot be resumed under changed code or
+judge artifacts.
 
 These modes also save paired self-consistency predictions and EX from the same
 candidate pool. For a cascade, `manifest.selection_mode` is `hybrid_cascade` and
 each `queries[].selection.cascade_tie_breaker_engaged` is `true` only when the
 judge path was triggered (including failed judge attempts). Selection metadata
-includes vote groups, original tied candidate indices, judge scores/logprobs,
+includes vote groups, original tied candidate indices, judge ratings/rationales,
 and selection source. Query totals include all rollouts plus actual judge calls;
 the paired self-consistency totals exclude judge cost.
 
@@ -142,3 +221,12 @@ schema pruner, prompt mode and iteration budget. Report the paired
 self-consistency and DSPy selection scores from one candidate pool. The paper's
 77.84% is a trained three-agent reference result, so it is not a guaranteed
 target for this prompt-compiled system.
+
+Generator feedback renders SQL and decoded SQLite observations as plain text;
+JSON remains the storage format for history, never the prompt rendering format.
+The final allowed decision is submitted as `final_answer` even if the model
+requests a probe. History records `final_action_forced: true` for that override.
+Earlier probes still continue, and SQLite must accept the submitted SQL before
+it becomes a prediction. This budget policy applies equally to compiled and
+uncompiled generation and to training rollouts; it adds no extra model call.
+An invalid, empty, or missing model response can still fail generation.

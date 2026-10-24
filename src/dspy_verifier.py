@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import math
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -87,11 +87,13 @@ def sanitize_trajectory(candidate: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def load_compiled_verifier(artifact_path: str | Path = COMPILED_VERIFIER_PATH):
-    """Fail early on absent, incompatible or uncompiled verifier artifacts."""
-    from src.dspy_modules import create_dspy_lm
-
+def validate_compiled_verifier_artifact(artifact_path: str | Path = COMPILED_VERIFIER_PATH):
+    """Validate judge state without configuring credentials or making requests."""
     path = Path(artifact_path).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"Compiled DSPy rating verifier not found: {path}. "
+                                "Compile it with python -m src.dspy_optimizer --mode verifier "
+                                "using training-only trajectories.")
     with path.open(encoding="utf-8") as handle:
         state = json.load(handle)
     manifest = state.get(VERIFIER_MANIFEST_KEY, {})
@@ -101,6 +103,16 @@ def load_compiled_verifier(artifact_path: str | Path = COMPILED_VERIFIER_PATH):
     judge_state = state.get("judge", {})
     if len(judge_state.get("signature", {}).get("fields", [])) != len(TrajectoryValiditySignature.fields):
         raise ValueError("Verifier artifact has incompatible input/output signatures")
+    if not judge_state.get("demos"):
+        raise ValueError("The verifier artifact contains no compiled demonstrations")
+    return path
+
+
+def load_compiled_verifier(artifact_path: str | Path = COMPILED_VERIFIER_PATH):
+    """Load the fixed compiled rating judge used by standalone and hybrid modes."""
+    from src.dspy_modules import create_dspy_lm
+
+    path = validate_compiled_verifier_artifact(artifact_path)
     verifier = TrajectoryVerifier()
     verifier.load(str(path))
     if not verifier.judge.demos:
@@ -115,6 +127,17 @@ def load_compiled_verifier(artifact_path: str | Path = COMPILED_VERIFIER_PATH):
         base_url=settings.langfuse_base_url,
     )
     return verifier
+
+
+@contextmanager
+def _preserve_accounting_on_error(stages, started):
+    try:
+        yield
+    except Exception as error:
+        error.mars_metrics = summarize_query_metrics(
+            stages, turn=0, latency_seconds=perf_counter() - started,
+        )
+        raise
 
 
 def select_with_dspy(
@@ -143,7 +166,7 @@ def select_with_dspy(
     scores = []
     errors = []
     adapter = dspy.ChatAdapter(use_json_adapter_fallback=False)
-    with capture_query_metrics() as stages, dspy.context(adapter=adapter):
+    with capture_query_metrics() as stages, _preserve_accounting_on_error(stages, started), dspy.context(adapter=adapter):
         for position, candidate in enumerate(candidates):
             index = candidate.get("candidate_index", position)
             if not isinstance(candidate.get("final_sql"), str) or not candidate["final_sql"].strip():
@@ -208,7 +231,10 @@ def select_with_dspy(
             metrics[field] = metrics[f"observed_{field}"] = 0
         metrics["accounting_complete"] = True
     if langfuse_client is not None:
-        langfuse_client.flush()
+        try:
+            langfuse_client.flush()
+        except Exception as error:
+            metrics["telemetry_export_error"] = f"{type(error).__name__}: {error}"
     selected = None
     if scores and not errors:
         selected = min(scores, key=lambda item: (-item["score"], item["candidate_index"]))["candidate_index"]

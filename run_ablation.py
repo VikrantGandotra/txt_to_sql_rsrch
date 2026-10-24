@@ -12,10 +12,9 @@ def main(argv=None):
     parser.add_argument("--dev-json", required=True)
     parser.add_argument("--db-dir", required=True)
     parser.add_argument("--limit", type=int, default=100)
-    parser.add_argument("--selection", choices=("self_consistency", "dspy_verifier",
-                                               "generative_verifier", "hybrid_cascade"),
+    parser.add_argument("--selection", choices=("self_consistency", "dspy_verifier", "hybrid_cascade"),
                         default="self_consistency",
-                        help="hybrid_cascade uses execution votes, judging only tied top groups")
+                        help="hybrid_cascade uses execution votes and DSPy ratings for tied top groups")
     parser.add_argument("--prompt-mode", choices=("compiled_dspy", "uncompiled_dspy", "baseline"),
                         default="compiled_dspy")
     parser.add_argument("--compiled-model", default=None)
@@ -29,6 +28,8 @@ def main(argv=None):
     parser.add_argument("--verification-samples", type=int, default=1,
                         help="Judge samples per eligible candidate (hybrid judges only tied top groups)")
     parser.add_argument("--output", default=None)
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume the same output's durable question checkpoint")
     args = parser.parse_args(argv)
     output = args.output or str(Path("artifacts") / "ablation" / args.selection / "predict.json")
     run_bird_evaluation(
@@ -39,6 +40,7 @@ def main(argv=None):
         prompt_mode=args.prompt_mode, compiled_model_path=args.compiled_model,
         verifier_path=args.verifier_model, verification_samples=args.verification_samples,
         execution_timeout=30.0,
+        resume=args.resume,
     )
     report = json.loads(Path(output).with_suffix(".metrics.json").read_text(encoding="utf-8"))
     print(f"{args.selection}: EX={report['execution_accuracy']:.2f}% ({report['correct']}/{report['total']})")

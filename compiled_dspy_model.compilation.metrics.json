@@ -3,473 +3,401 @@
     {
       "stage": "compilation",
       "turn": 0,
-      "prompt_tokens": 50883,
-      "completion_tokens": 5402,
-      "total_tokens": 56285,
-      "cost_usd": 0.0061687,
+      "prompt_tokens": 106220,
+      "completion_tokens": 5310,
+      "total_tokens": 111530,
+      "cost_usd": 0.011684,
       "model": "qwen/qwen-2.5-7b-instruct",
-      "lm_call_count": 49,
-      "llm_latency_seconds": 58.18153409980005,
-      "latency_seconds": 518.4341729999869,
+      "lm_call_count": 41,
+      "llm_latency_seconds": 153.22385159990517,
+      "latency_seconds": 408.4386769999983,
       "error": null,
       "calls": [
         {
-          "response_id": "gen-1792180703-TtlxTM28mED7a8y2IV78",
+          "response_id": "gen-1792818471-Q8mQfq43fPNsJs6SkjWI",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 517,
-          "completion_tokens": 77,
-          "total_tokens": 594,
-          "cost_usd": 6.71e-05,
-          "latency_seconds": 7.504688999964856
+          "prompt_tokens": 694,
+          "completion_tokens": 59,
+          "total_tokens": 753,
+          "cost_usd": 8.12e-05,
+          "latency_seconds": 3.481432800006587
         },
         {
-          "response_id": "gen-1792180705-bwydr7Lutcn7WmQFnlu1",
+          "response_id": "gen-1792818472-HDrv7tcJ735VXIBZZQTh",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 838,
-          "completion_tokens": 137,
-          "total_tokens": 975,
-          "cost_usd": 0.0001112,
-          "latency_seconds": 1.4876681999885477
-        },
-        {
-          "response_id": "gen-1792180736-g43hyzoWZNlFPjHhgn71",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1052,
-          "completion_tokens": 145,
+          "prompt_tokens": 1030,
+          "completion_tokens": 167,
           "total_tokens": 1197,
-          "cost_usd": 0.0001342,
-          "latency_seconds": 1.699912799987942
+          "cost_usd": 0.0001364,
+          "latency_seconds": 1.5934708999702707
         },
         {
-          "response_id": "gen-1792180738-pikXV1ikM43Rt2COLnHh",
+          "response_id": "gen-1792818511-0fZAzPQSxLv851FeROYi",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1234,
-          "completion_tokens": 153,
-          "total_tokens": 1387,
-          "cost_usd": 0.000154,
-          "latency_seconds": 1.5470118000521325
+          "prompt_tokens": 1769,
+          "completion_tokens": 154,
+          "total_tokens": 1923,
+          "cost_usd": 0.0002077,
+          "latency_seconds": 22.16226660000393
         },
         {
-          "response_id": "gen-1792180749-rSqDW3zHTf6l8G6jMvl8",
+          "response_id": "gen-1792818516-OUnH6qNF01EA7eBjQMGZ",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 3171,
-          "completion_tokens": 138,
-          "total_tokens": 3309,
-          "cost_usd": 0.0003447,
-          "latency_seconds": 1.6791716000298038
+          "prompt_tokens": 2192,
+          "completion_tokens": 149,
+          "total_tokens": 2341,
+          "cost_usd": 0.000249,
+          "latency_seconds": 1.008513100037817
         },
         {
-          "response_id": "gen-1792180768-0tcLC5wZqEBEHpJA69KK",
+          "response_id": "gen-1792818525-T34VIqRfDNUTHZ9pIu32",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 521,
-          "completion_tokens": 49,
-          "total_tokens": 570,
-          "cost_usd": 6.19e-05,
-          "latency_seconds": 0.5470990000176243
+          "prompt_tokens": 698,
+          "completion_tokens": 57,
+          "total_tokens": 755,
+          "cost_usd": 8.12e-05,
+          "latency_seconds": 0.9383737000171095
         },
         {
-          "response_id": "gen-1792180769-Xn3iILSEGWKTervRBfQf",
+          "response_id": "gen-1792818526-8wJehbohXRE5ZkpESBIJ",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 820,
-          "completion_tokens": 104,
-          "total_tokens": 924,
-          "cost_usd": 0.0001028,
-          "latency_seconds": 0.8554872999666259
+          "prompt_tokens": 1032,
+          "completion_tokens": 102,
+          "total_tokens": 1134,
+          "cost_usd": 0.0001236,
+          "latency_seconds": 0.8651679999893531
         },
         {
-          "response_id": "gen-1792180770-DdcVzFLHs23RlafBYNf2",
+          "response_id": "gen-1792818527-doPcICwVr2X7WhBZzlb6",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1044,
-          "completion_tokens": 99,
-          "total_tokens": 1143,
-          "cost_usd": 0.0001242,
-          "latency_seconds": 0.7386946000042371
+          "prompt_tokens": 1252,
+          "completion_tokens": 101,
+          "total_tokens": 1353,
+          "cost_usd": 0.0001454,
+          "latency_seconds": 0.9748199000023305
         },
         {
-          "response_id": "gen-1792180771-o46T2u47eU90q0GvKAkA",
+          "response_id": "gen-1792818528-3Qf0vBuFAM0wQtIOzeTq",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 509,
-          "completion_tokens": 38,
-          "total_tokens": 547,
-          "cost_usd": 5.85e-05,
-          "latency_seconds": 0.4401771000120789
+          "prompt_tokens": 686,
+          "completion_tokens": 41,
+          "total_tokens": 727,
+          "cost_usd": 7.68e-05,
+          "latency_seconds": 0.4647766999551095
         },
         {
-          "response_id": "gen-1792180772-y9ekUYJIdYuLpwlQJPtQ",
+          "response_id": "gen-1792818529-iTMiqF4scZtWMRVkqGYQ",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 791,
-          "completion_tokens": 110,
-          "total_tokens": 901,
-          "cost_usd": 0.0001011,
-          "latency_seconds": 0.8059515999630094
+          "prompt_tokens": 1004,
+          "completion_tokens": 84,
+          "total_tokens": 1088,
+          "cost_usd": 0.0001172,
+          "latency_seconds": 0.6363714999752119
         },
         {
-          "response_id": "gen-1792180773-r5u0eAbBXeMDvIDJg7rF",
+          "response_id": "gen-1792818530-D1ZHOi9p4Fnm8DCWGSkU",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1254,
-          "completion_tokens": 229,
-          "total_tokens": 1483,
-          "cost_usd": 0.0001712,
-          "latency_seconds": 1.637938399973791
-        },
-        {
-          "response_id": "gen-1792180775-iftATTQfJFUK6DdS8Av5",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 495,
-          "completion_tokens": 56,
-          "total_tokens": 551,
-          "cost_usd": 6.07e-05,
-          "latency_seconds": 0.523174999980256
-        },
-        {
-          "response_id": "gen-1792180776-n0ZsACIIJtKCDHHevAr2",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 795,
-          "completion_tokens": 130,
-          "total_tokens": 925,
-          "cost_usd": 0.0001055,
-          "latency_seconds": 0.9691795000107959
-        },
-        {
-          "response_id": "gen-1792180806-lRnGw7a5FgKWrP9RzPIk",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1011,
-          "completion_tokens": 96,
-          "total_tokens": 1107,
-          "cost_usd": 0.0001203,
-          "latency_seconds": 0.9109234999632463
-        },
-        {
-          "response_id": "gen-1792180837-D7gPjakKpiMNg1PrlQTH",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 513,
-          "completion_tokens": 58,
-          "total_tokens": 571,
-          "cost_usd": 6.29e-05,
-          "latency_seconds": 0.9404200999997556
-        },
-        {
-          "response_id": "gen-1792180838-q8O1wHc7NYKFTA6n5OOj",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 815,
-          "completion_tokens": 156,
-          "total_tokens": 971,
-          "cost_usd": 0.0001127,
-          "latency_seconds": 1.519151900021825
-        },
-        {
-          "response_id": "gen-1792180850-uyjOxsun27IzhAwVYSvO",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1081,
-          "completion_tokens": 132,
-          "total_tokens": 1213,
-          "cost_usd": 0.0001345,
-          "latency_seconds": 1.1831346999970265
-        },
-        {
-          "response_id": "gen-1792180877-MstgkLxgM87u1pS5lwI3",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 515,
-          "completion_tokens": 58,
-          "total_tokens": 573,
-          "cost_usd": 6.31e-05,
-          "latency_seconds": 0.9829063999932259
-        },
-        {
-          "response_id": "gen-1792180878-Rr0SDn3R4EGzLmU2xfSl",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 817,
-          "completion_tokens": 111,
-          "total_tokens": 928,
-          "cost_usd": 0.0001039,
-          "latency_seconds": 1.0588431000360288
-        },
-        {
-          "response_id": "gen-1792180888-K6FtZ0wDtyYPVJqZOjIg",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1042,
-          "completion_tokens": 111,
-          "total_tokens": 1153,
-          "cost_usd": 0.0001264,
-          "latency_seconds": 1.1044212999986485
-        },
-        {
-          "response_id": "gen-1792180915-j9zpvwwMlPOLHxpZ8X3G",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 983,
-          "completion_tokens": 111,
-          "total_tokens": 1094,
-          "cost_usd": 0.0001205,
-          "latency_seconds": 0.9723368000122719
-        },
-        {
-          "response_id": "gen-1792180916-Y9PS2qLuwgGUpgQwcyre",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1338,
-          "completion_tokens": 194,
-          "total_tokens": 1532,
-          "cost_usd": 0.0001726,
-          "latency_seconds": 1.5361578000010923
-        },
-        {
-          "response_id": "gen-1792180961-Uc9ljw0SJJ53IHLh9L42",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 989,
-          "completion_tokens": 46,
-          "total_tokens": 1035,
-          "cost_usd": 0.0001081,
-          "latency_seconds": 0.7326952000148594
-        },
-        {
-          "response_id": "gen-1792180962-79v8JNVTHjxNFuPCE5bQ",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1279,
-          "completion_tokens": 106,
-          "total_tokens": 1385,
-          "cost_usd": 0.0001491,
-          "latency_seconds": 0.9554856999893673
-        },
-        {
-          "response_id": "gen-1792180978-C53FSsUyID2wOwzovd8G",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 995,
-          "completion_tokens": 79,
-          "total_tokens": 1074,
-          "cost_usd": 0.0001153,
-          "latency_seconds": 0.7990007000043988
-        },
-        {
-          "response_id": "gen-1792180979-UI2E8eVqDAyN3xW75bRJ",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1318,
-          "completion_tokens": 145,
-          "total_tokens": 1463,
-          "cost_usd": 0.0001608,
-          "latency_seconds": 1.396658799960278
-        },
-        {
-          "response_id": "gen-1792180985-pN9DhVndktjBRLbA0Q5V",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 2170,
-          "completion_tokens": 121,
-          "total_tokens": 2291,
-          "cost_usd": 0.0002412,
-          "latency_seconds": 1.09877390001202
-        },
-        {
-          "response_id": "gen-1792181004-ofgZg1mh3dis87BHGtZM",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 835,
-          "completion_tokens": 82,
-          "total_tokens": 917,
-          "cost_usd": 9.99e-05,
-          "latency_seconds": 0.8277555999811739
-        },
-        {
-          "response_id": "gen-1792181005-MmlfmBIpDh5ICiW9gSo9",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1161,
-          "completion_tokens": 142,
-          "total_tokens": 1303,
-          "cost_usd": 0.0001445,
-          "latency_seconds": 1.174042400030885
-        },
-        {
-          "response_id": "gen-1792181011-yp2tygJcsvKPH6hSJYoC",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1397,
-          "completion_tokens": 129,
+          "prompt_tokens": 1436,
+          "completion_tokens": 90,
           "total_tokens": 1526,
-          "cost_usd": 0.0001655,
-          "latency_seconds": 1.0593714999849908
+          "cost_usd": 0.0001616,
+          "latency_seconds": 0.8083150999736972
         },
         {
-          "response_id": "gen-1792181012-7pZ2mCE8mPn0G4CC3EE7",
+          "response_id": "gen-1792818531-DuyWs8u6yWMEamj9wx7y",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 858,
-          "completion_tokens": 73,
-          "total_tokens": 931,
-          "cost_usd": 0.0001004,
-          "latency_seconds": 0.7515246999682859
+          "prompt_tokens": 672,
+          "completion_tokens": 60,
+          "total_tokens": 732,
+          "cost_usd": 7.92e-05,
+          "latency_seconds": 0.5326226999750361
         },
         {
-          "response_id": "gen-1792181013-Fi8JClXyBEaDb3f9qr3T",
+          "response_id": "gen-1792818531-57UDJcaLJYC7O4nPLzuM",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1175,
-          "completion_tokens": 158,
-          "total_tokens": 1333,
-          "cost_usd": 0.0001491,
-          "latency_seconds": 1.1476023999857716
+          "prompt_tokens": 1009,
+          "completion_tokens": 176,
+          "total_tokens": 1185,
+          "cost_usd": 0.0001361,
+          "latency_seconds": 1.4014218000229448
         },
         {
-          "response_id": "gen-1792181042-k8rptttCqVlKxSxQzo3f",
+          "response_id": "gen-1792818548-bDPHvmMvBQaBpuILVnTR",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 2336,
-          "completion_tokens": 165,
-          "total_tokens": 2501,
-          "cost_usd": 0.0002666,
-          "latency_seconds": 1.718414299946744
+          "prompt_tokens": 1261,
+          "completion_tokens": 151,
+          "total_tokens": 1412,
+          "cost_usd": 0.0001563,
+          "latency_seconds": 1.0759430000325665
         },
         {
-          "response_id": "gen-1792181110-qoJY631TJk0BLWNZlvZv",
+          "response_id": "gen-1792818586-NZmIaZ7qQ4ZaRkPwcBaT",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 528,
-          "completion_tokens": 64,
-          "total_tokens": 592,
-          "cost_usd": 6.56e-05,
-          "latency_seconds": 0.6885857000015676
+          "prompt_tokens": 1433,
+          "completion_tokens": 154,
+          "total_tokens": 1587,
+          "cost_usd": 0.0001741,
+          "latency_seconds": 22.242223099980038
         },
         {
-          "response_id": "gen-1792181110-hCcnCsKDPsG5L92uSe70",
+          "response_id": "gen-1792818602-8DsbecuHbJ71B6vDdRP1",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 836,
-          "completion_tokens": 139,
-          "total_tokens": 975,
-          "cost_usd": 0.0001114,
-          "latency_seconds": 1.1693042000406422
+          "prompt_tokens": 1608,
+          "completion_tokens": 125,
+          "total_tokens": 1733,
+          "cost_usd": 0.0001858,
+          "latency_seconds": 1.0917879999615252
         },
         {
-          "response_id": "gen-1792181131-oyPRN0LCNlahgjUrzSdv",
+          "response_id": "gen-1792818619-pMLpsxg44MgcoKDT3z4l",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 1779,
-          "completion_tokens": 137,
-          "total_tokens": 1916,
-          "cost_usd": 0.0002053,
-          "latency_seconds": 1.3462654000031762
+          "prompt_tokens": 1754,
+          "completion_tokens": 156,
+          "total_tokens": 1910,
+          "cost_usd": 0.0002066,
+          "latency_seconds": 2.308928900049068
         },
         {
-          "response_id": "gen-1792181171-5Gayp6z64o9aU7VWaHsK",
+          "response_id": "gen-1792818653-8QQGB1Nk1asScnuFaIWf",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 516,
-          "completion_tokens": 64,
-          "total_tokens": 580,
-          "cost_usd": 6.44e-05,
-          "latency_seconds": 0.9562204999965616
+          "prompt_tokens": 690,
+          "completion_tokens": 53,
+          "total_tokens": 743,
+          "cost_usd": 7.96e-05,
+          "latency_seconds": 0.5389420000137761
         },
         {
-          "response_id": "gen-1792181172-PEolHcxQxdnwctiukb5d",
+          "response_id": "gen-1792818654-2OyQGUrHp7uYyb9N6dcX",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 824,
-          "completion_tokens": 136,
-          "total_tokens": 960,
-          "cost_usd": 0.0001096,
-          "latency_seconds": 1.2825200000079349
+          "prompt_tokens": 1020,
+          "completion_tokens": 150,
+          "total_tokens": 1170,
+          "cost_usd": 0.000132,
+          "latency_seconds": 1.1226201999816112
         },
         {
-          "response_id": "gen-1792181180-uBTDTfoDsJFrteRHHuaR",
+          "response_id": "gen-1792818655-98PizcgEE3PnYhdbc8ff",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 3199,
-          "completion_tokens": 206,
-          "total_tokens": 3405,
-          "cost_usd": 0.0003611,
-          "latency_seconds": 1.940399700019043
+          "prompt_tokens": 1264,
+          "completion_tokens": 114,
+          "total_tokens": 1378,
+          "cost_usd": 0.0001492,
+          "latency_seconds": 0.9626476999837905
         },
         {
-          "response_id": "gen-1792181181-ruqSgC5WabEvEyliaa5m",
+          "response_id": "gen-1792818656-etGH6QmYbriSYbXViHXr",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 533,
-          "completion_tokens": 138,
-          "total_tokens": 671,
-          "cost_usd": 8.09e-05,
-          "latency_seconds": 1.036854499951005
+          "prompt_tokens": 1408,
+          "completion_tokens": 198,
+          "total_tokens": 1606,
+          "cost_usd": 0.0001804,
+          "latency_seconds": 1.563124600041192
         },
         {
-          "response_id": "gen-1792181183-fkayTfvaYxiyLduMzQtu",
+          "response_id": "gen-1792818664-hMsLHLQL1PkVsEe4pIyj",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 915,
-          "completion_tokens": 164,
-          "total_tokens": 1079,
-          "cost_usd": 0.0001243,
-          "latency_seconds": 1.30336169997463
+          "prompt_tokens": 1656,
+          "completion_tokens": 197,
+          "total_tokens": 1853,
+          "cost_usd": 0.000205,
+          "latency_seconds": 1.3758828000281937
         },
         {
-          "response_id": "gen-1792181206-FDhM6ct5az6LXwQF0Aw8",
+          "response_id": "gen-1792818671-Yux1Ddz3Rie1McO5lICO",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 535,
-          "completion_tokens": 73,
-          "total_tokens": 608,
-          "cost_usd": 6.81e-05,
-          "latency_seconds": 0.7981670000008307
+          "prompt_tokens": 1893,
+          "completion_tokens": 198,
+          "total_tokens": 2091,
+          "cost_usd": 0.0002289,
+          "latency_seconds": 1.489770399988629
         },
         {
-          "response_id": "gen-1792181207-51Jve3wfxTf9SGDHzB8d",
+          "response_id": "gen-1792818682-jzpjejqFXQlJEc7Nj9hs",
           "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 852,
-          "completion_tokens": 142,
-          "total_tokens": 994,
-          "cost_usd": 0.0001136,
-          "latency_seconds": 1.2283473999705166
+          "prompt_tokens": 692,
+          "completion_tokens": 58,
+          "total_tokens": 750,
+          "cost_usd": 8.08e-05,
+          "latency_seconds": 0.6689761999878101
         },
         {
-          "response_id": "gen-1792181208-GIA0tWs0Sm3cgVYW3Qv5",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 506,
-          "completion_tokens": 37,
-          "total_tokens": 543,
-          "cost_usd": 5.8e-05,
-          "latency_seconds": 0.4400749999913387
-        },
-        {
-          "response_id": "gen-1792181208-PH5Oykeo7dPth9LW1jT9",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 787,
-          "completion_tokens": 80,
-          "total_tokens": 867,
-          "cost_usd": 9.47e-05,
-          "latency_seconds": 0.8858391999965534
-        },
-        {
-          "response_id": "gen-1792181209-p6FJgqKNXiZvRXJQOxkG",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 989,
-          "completion_tokens": 88,
-          "total_tokens": 1077,
-          "cost_usd": 0.0001165,
-          "latency_seconds": 0.7732549000065774
-        },
-        {
-          "response_id": "gen-1792181210-TIgJq6kw8p5PkTOEjvbW",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 556,
-          "completion_tokens": 32,
-          "total_tokens": 588,
-          "cost_usd": 6.2e-05,
-          "latency_seconds": 0.5405493999714963
-        },
-        {
-          "response_id": "gen-1792181211-orNwN83gPHpztnLbKZJv",
-          "model": "qwen/qwen-2.5-7b-instruct",
-          "prompt_tokens": 832,
-          "completion_tokens": 93,
-          "total_tokens": 925,
-          "cost_usd": 0.0001018,
-          "latency_seconds": 0.8416098000016063
-        },
-        {
-          "response_id": "gen-1792181213-JmMLY4IxryF91xdaTkQI",
+          "response_id": "gen-1792818682-ics14rpf9FF1xvH1m2lk",
           "model": "qwen/qwen-2.5-7b-instruct",
           "prompt_tokens": 1027,
-          "completion_tokens": 71,
-          "total_tokens": 1098,
-          "cost_usd": 0.0001169,
-          "latency_seconds": 0.6444030000129715
+          "completion_tokens": 141,
+          "total_tokens": 1168,
+          "cost_usd": 0.0001309,
+          "latency_seconds": 1.0367390000028536
+        },
+        {
+          "response_id": "gen-1792818687-KdSMGE63uGVPJbeQDTA9",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1276,
+          "completion_tokens": 114,
+          "total_tokens": 1390,
+          "cost_usd": 0.0001504,
+          "latency_seconds": 0.7879971999791451
+        },
+        {
+          "response_id": "gen-1792818701-s8R4UINIlSY12m5ddKkI",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1160,
+          "completion_tokens": 80,
+          "total_tokens": 1240,
+          "cost_usd": 0.000132,
+          "latency_seconds": 0.6628868999541737
+        },
+        {
+          "response_id": "gen-1792818701-iBaUxiiukYpVvBlhIAwb",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1517,
+          "completion_tokens": 172,
+          "total_tokens": 1689,
+          "cost_usd": 0.0001861,
+          "latency_seconds": 1.111007499974221
+        },
+        {
+          "response_id": "gen-1792818717-Gyp9PoEZf5SKIpZuarEC",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 8199,
+          "completion_tokens": 164,
+          "total_tokens": 8363,
+          "cost_usd": 0.0008527,
+          "latency_seconds": 1.5961193999974057
+        },
+        {
+          "response_id": "gen-1792818724-oZOMhnscQADzKI4LX9RZ",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 11601,
+          "completion_tokens": 189,
+          "total_tokens": 11790,
+          "cost_usd": 0.0011979,
+          "latency_seconds": 1.9108664999948815
+        },
+        {
+          "response_id": "gen-1792818731-toygchfBRFMCUOkpaHoa",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 15028,
+          "completion_tokens": 167,
+          "total_tokens": 15195,
+          "cost_usd": 0.0015362,
+          "latency_seconds": 1.3990366000216454
+        },
+        {
+          "response_id": "gen-1792818737-MnEAWsGNbWNvOyDura8l",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 18433,
+          "completion_tokens": 186,
+          "total_tokens": 18619,
+          "cost_usd": 0.0018805,
+          "latency_seconds": 1.6494446999859065
+        },
+        {
+          "response_id": "gen-1792818796-AdxyTubNMXoZjFipTLKG",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1166,
+          "completion_tokens": 53,
+          "total_tokens": 1219,
+          "cost_usd": 0.0001272,
+          "latency_seconds": 42.76690470002359
+        },
+        {
+          "response_id": "gen-1792818797-GM0eROMgmYF9IZAtNBm2",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1496,
+          "completion_tokens": 130,
+          "total_tokens": 1626,
+          "cost_usd": 0.0001756,
+          "latency_seconds": 0.9246164999785833
+        },
+        {
+          "response_id": "gen-1792818802-WUHKlDK2XpJiEPgpKEI4",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1730,
+          "completion_tokens": 142,
+          "total_tokens": 1872,
+          "cost_usd": 0.0002014,
+          "latency_seconds": 1.1626161999884062
+        },
+        {
+          "response_id": "gen-1792818807-KI4er2M8RyoOblCUDOvo",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1907,
+          "completion_tokens": 145,
+          "total_tokens": 2052,
+          "cost_usd": 0.0002197,
+          "latency_seconds": 1.1905729000573047
+        },
+        {
+          "response_id": "gen-1792818813-MTeOmQaEmw5MPNb6tQwG",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2087,
+          "completion_tokens": 142,
+          "total_tokens": 2229,
+          "cost_usd": 0.0002371,
+          "latency_seconds": 1.009716100001242
+        },
+        {
+          "response_id": "gen-1792818848-QeMEafoAuyGUMRvyhjYS",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1172,
+          "completion_tokens": 64,
+          "total_tokens": 1236,
+          "cost_usd": 0.00013,
+          "latency_seconds": 21.9881629999727
+        },
+        {
+          "response_id": "gen-1792818849-XGZZaUKIrOvb8fV9P2Pk",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1513,
+          "completion_tokens": 159,
+          "total_tokens": 1672,
+          "cost_usd": 0.0001831,
+          "latency_seconds": 1.1025937999947928
+        },
+        {
+          "response_id": "gen-1792818854-3txY8gk2SNlM50Zwtdw9",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2406,
+          "completion_tokens": 163,
+          "total_tokens": 2569,
+          "cost_usd": 0.0002732,
+          "latency_seconds": 1.2277487000101246
+        },
+        {
+          "response_id": "gen-1792818859-ZJ5JJZ8PmX3AT6rk6RLU",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2919,
+          "completion_tokens": 161,
+          "total_tokens": 3080,
+          "cost_usd": 0.0003241,
+          "latency_seconds": 1.2319270999869332
+        },
+        {
+          "response_id": "gen-1792818864-rGk82oXtmTKOSv7Tq5qW",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 3430,
+          "completion_tokens": 144,
+          "total_tokens": 3574,
+          "cost_usd": 0.0003718,
+          "latency_seconds": 1.1564951000036672
         }
       ]
     }
   ],
   "sql_attempts": 0,
   "self_correction_cycles": 0,
-  "lm_call_count": 49,
-  "llm_latency_seconds": 58.18153409980005,
-  "latency_seconds": 518.4341729999869,
-  "prompt_tokens": 50883,
-  "observed_prompt_tokens": 50883,
-  "completion_tokens": 5402,
-  "observed_completion_tokens": 5402,
-  "total_tokens": 56285,
-  "observed_total_tokens": 56285,
-  "cost_usd": 0.0061687,
-  "observed_cost_usd": 0.0061687,
+  "lm_call_count": 41,
+  "llm_latency_seconds": 153.22385159990517,
+  "latency_seconds": 408.4386769999983,
+  "prompt_tokens": 106220,
+  "observed_prompt_tokens": 106220,
+  "completion_tokens": 5310,
+  "observed_completion_tokens": 5310,
+  "total_tokens": 111530,
+  "observed_total_tokens": 111530,
+  "cost_usd": 0.011684,
+  "observed_cost_usd": 0.011684,
   "accounting_complete": true,
   "error": null
 }

@@ -1,4 +1,4 @@
-"""Offline checks for execution consensus followed by a tie-only confidence judge."""
+"""Offline checks for execution consensus followed by a tie-only DSPy rating judge."""
 
 from contextlib import closing, redirect_stdout
 from io import StringIO
@@ -64,8 +64,8 @@ class HybridCascadeRoutingTests(unittest.TestCase):
         ]
         judge_metrics = measured(20, 0.002, calls=4)
         judge = Mock(return_value={
-            "mode": "generative_verifier", "selected_candidate_index": 11,
-            "score_kind": "next_token_yes_probability", "metrics": judge_metrics,
+            "mode": "dspy_verifier", "selected_candidate_index": 11,
+            "score_kind": "elicited_validity_rating", "metrics": judge_metrics,
         })
         selection = self.select(candidates, judge)
         judged = judge.call_args.args[3]
@@ -74,7 +74,7 @@ class HybridCascadeRoutingTests(unittest.TestCase):
         self.assertEqual(selection["selected_candidate_index"], 11)
         self.assertEqual(set(selection["tied_candidate_indices"]), {20, 3, 11, 6})
         self.assertTrue(selection["cascade_tie_breaker_engaged"])
-        self.assertEqual(selection["selection_source"], "generative_verifier")
+        self.assertEqual(selection["selection_source"], "dspy_verifier")
         self.assertEqual(selection["mode"], "hybrid_cascade")
         self.assertEqual(selection["metrics"], judge_metrics)
         self.assertEqual(selection["extra_llm_calls"], 4)
@@ -103,7 +103,7 @@ class HybridCascadeRoutingTests(unittest.TestCase):
         judge.assert_not_called()
 
     def test_judge_failure_retains_cascade_routing_metadata_on_exception(self):
-        failure = RuntimeError("Provider omitted next-token confidence")
+        failure = RuntimeError("Invalid DSPy rating")
         failure.mars_metrics = measured(20, 0.002)
         with self.assertRaises(RuntimeError) as caught:
             self.select([candidate(3, "A"), candidate(8, "B")], Mock(side_effect=failure))
@@ -156,8 +156,12 @@ class HybridCascadeBatchTests(unittest.TestCase):
         return SimpleNamespace(invoke=invoke)
 
     def run_evaluation(self, names, judge, **kwargs):
+        artifact = self.root / "judge.json"
+        artifact.write_text("{}", encoding="utf-8")
+        kwargs.setdefault("verifier_path", str(artifact))
         with patch("src.bird_evaluator.build_sql_graph", return_value=self.graph_for(names)), \
-             patch("src.generative_verifier.select_with_generative", side_effect=judge):
+             patch("src.dspy_verifier.load_compiled_verifier", return_value=object()), \
+             patch("src.dspy_verifier.select_with_dspy", side_effect=judge):
             bird_evaluator.run_bird_evaluation(
                 str(self.dev), str(self.db_dir), str(self.output), num_candidates=len(names),
                 selection_mode="hybrid_cascade", **kwargs,
@@ -171,8 +175,8 @@ class HybridCascadeBatchTests(unittest.TestCase):
             for label in ("GOLD_ONLY_SENTINEL", "gold_sql", "execution_correct"):
                 self.assertNotIn(label, serialized)
             return {
-                "mode": "generative_verifier", "selected_candidate_index": 3,
-                "score_kind": "next_token_yes_probability", "metrics": measured(20, 0.002, calls=6),
+                "mode": "dspy_verifier", "selected_candidate_index": 3,
+                "score_kind": "elicited_validity_rating", "metrics": measured(20, 0.002, calls=6),
             }
         report = self.run_evaluation(["Alice"] * 3 + ["Charlie"] * 3 + ["Bob"] * 2, judge)
         query = report["queries"][0]
@@ -214,10 +218,10 @@ class HybridCascadeBatchTests(unittest.TestCase):
         self.assertAlmostEqual(report["totals"]["observed_cost_usd"], 0.002)
         self.assertFalse(report["totals"]["accounting_complete"])
 
-    def test_unsupported_confidence_does_not_fall_back_to_consensus_and_keeps_billed_cost(self):
+    def test_invalid_rating_does_not_fall_back_to_consensus_and_keeps_billed_cost(self):
         judge = Mock(return_value={
-            "mode": "generative_verifier", "selected_candidate_index": None,
-            "errors": [{"candidate_index": 1, "error": "Provider omitted next-token logprobs"}],
+            "mode": "dspy_verifier", "selected_candidate_index": None,
+            "errors": [{"candidate_index": 1, "error": "Invalid DSPy rating"}],
             "metrics": measured(20, 0.002, calls=2),
         })
         report = self.run_evaluation(["Charlie", "Alice"], judge)
@@ -228,7 +232,7 @@ class HybridCascadeBatchTests(unittest.TestCase):
         self.assertIsNone(json.loads(self.output.read_text(encoding="utf-8"))["999"])
         self.assertEqual(report["execution_accuracy"], 0)
         self.assertEqual(report["self_consistency"]["execution_accuracy"], 100)
-        self.assertIn("Provider omitted next-token logprobs", query["error"])
+        self.assertIn("Invalid DSPy rating", query["error"])
         self.assertEqual(report["totals"]["prompt_tokens"], 40)
         self.assertAlmostEqual(report["totals"]["cost_usd"], 0.004)
         self.assertTrue(report["totals"]["accounting_complete"])

@@ -74,6 +74,28 @@ class DSPyIntegrationTests(unittest.TestCase):
             max_turns=3,
         )
 
+    def test_dspy_final_turn_forces_submission_with_unescaped_feedback(self):
+        sql = 'SELECT name AS "User Name" FROM users ORDER BY age DESC LIMIT 1'
+        lm = DummyLM([
+            {"logical_plan": "Return the oldest user."},
+            generation(sql, action="probe"),
+            generation(sql, action="probe"),
+            generation(sql, action="probe"),
+        ])
+        program = TextToSQLProgram()
+        program.set_lm(lm)
+        agent = SQLAgentGraph(dspy_program=program)
+        result = self.run_agent(agent)
+        self.assertEqual(result["turn"], 3)
+        self.assertEqual(result["final_sql"], sql)
+        self.assertEqual([h["action"] for h in result["history"]], ["probe", "probe", "final_answer"])
+        self.assertTrue(result["history"][-1]["final_action_forced"])
+        self.assertEqual(len(lm.history), 4)
+        prompt = lm.history[-1]["messages"][-1]["content"]
+        self.assertIn(sql, prompt)
+        self.assertIn("columns:", prompt)
+        self.assertNotIn('\\"', prompt)
+
     def test_real_bootstrap_compiler_saves_and_reloads_demonstrations(self):
         self.assertEqual(len(self.examples), 4)
         for example in self.examples:

@@ -42,6 +42,36 @@ logger = logging.getLogger(__name__)
 _verbose_print_lock = Lock()
 
 
+def _plain_text(value: Any) -> str:
+    """Render prompt values without JSON serialization or added quote escapes."""
+    if isinstance(value, dict):
+        return "\n".join(f"{key}: {_plain_text(item)}" for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return "\n".join(f"- {_plain_text(item)}" for item in value) or "(empty)"
+    return str(value) if value is not None else "None"
+
+
+def _observation_text(observation: Any) -> str:
+    if not observation:
+        return "No execution yet."
+    if isinstance(observation, str):
+        try:
+            observation = json.loads(observation)
+        except ValueError:
+            pass
+    return _plain_text(observation)
+
+
+def _history_text(history: list[dict[str, Any]]) -> str:
+    return "\n\n".join(
+        f"Attempt {index}: {entry.get('action', 'unknown')}\n"
+        f"Rationale: {entry.get('rationale', '')}\n"
+        f"SQL:\n{entry.get('sql', entry.get('sql_query', ''))}\n"
+        f"SQLite observation:\n{_observation_text(entry.get('observation'))}"
+        for index, entry in enumerate(history, start=1)
+    ) or "No previous attempts."
+
+
 def should_continue(state: AgentState) -> Literal["generator", "end"]:
     """Probes always feed observations back; only final submission or budget ends."""
     if state.get("is_final", False) or state["turn"] >= state["max_turns"]:
@@ -206,8 +236,8 @@ class SQLAgentGraph:
             question += f"\n\nEvidence: {state['evidence']}"
         if include_feedback and (state["history"] or state["observation"]):
             question += (
-                f"\n\nPrevious SQL attempts: {json.dumps(state['history'])}"
-                f"\nLatest execution observation: {state['observation']}"
+                f"\n\nPrevious SQL attempts:\n{_history_text(state['history'])}"
+                f"\nLatest execution observation:\n{_observation_text(state['observation'])}"
                 "\nUse these <observation> records to refine the plan and answer the original question."
             )
         if include_feedback:
@@ -386,10 +416,10 @@ class SQLAgentGraph:
                         "role": "user",
                         "content": (
                             f"{self._task_context(state)}\n\n"
-                            f"Plan:\n{state['plan'].model_dump_json()}\n\n"
+                            f"Plan:\n{_plain_text(state['plan'].model_dump())}\n\n"
                             f"Attempt: {state['turn'] + 1} of {state['max_turns']}\n"
-                            f"Previous attempts:\n{json.dumps(state['history'])}\n"
-                            f"<observation>\n{state['observation'] or 'No execution yet.'}\n</observation>"
+                            f"Previous attempts:\n{_history_text(state['history'])}\n"
+                            f"<observation>\n{_observation_text(state['observation'])}\n</observation>"
                         ),
                     },
                 ],
@@ -398,11 +428,16 @@ class SQLAgentGraph:
                 rollout_seed=state.get("rollout_seed"),
             )
         prior_error = bool(state["observation"] and not json.loads(state["observation"])["is_valid"])
+        # The final decision is a submission even when the model requests another
+        # probe. Keep its SQL unchanged and let SQLite validate it normally.
+        forced_final = state["turn"] + 1 >= state["max_turns"] and candidate.action != "final_answer"
+        action = "final_answer" if forced_final else candidate.action
         return {
             "current_sql": candidate.sql_query.strip(),
-            "current_action": candidate.action,
+            "current_action": action,
+            "final_action_forced": forced_final,
             "rationale": candidate.rationale,
-            "is_final": candidate.action == "final_answer",
+            "is_final": action == "final_answer",
             "turn": state["turn"] + 1,
             "self_correction_cycles": state.get("self_correction_cycles", 0) + int(prior_error),
             "is_valid": False,
@@ -477,6 +512,7 @@ class SQLAgentGraph:
             "history": state["history"] + [{
                 "action": state["current_action"], "rationale": state["rationale"],
                 "sql": sql, "observation": observation,
+                "final_action_forced": state.get("final_action_forced", False),
             }],
             "sql_execution_count": state.get("sql_execution_count", 0) + 1,
             "is_valid": result.is_valid,

@@ -15,6 +15,7 @@ from dspy.utils.dummies import DummyLM
 from src.dspy_optimizer import (
     build_bird_trainset, build_trainset, build_verifier_trainset, compile_program,
     compile_verifier, collect_training_trajectories, TrajectoryTrainingProgram,
+    balance_verifier_examples,
 )
 from src.dspy_telemetry import OpenRouterLM
 from src.dspy_verifier import VERIFIER_MODEL, VERIFIER_MANIFEST_KEY
@@ -51,17 +52,78 @@ class TrajectoryCompilationTests(unittest.TestCase):
             self.assertEqual(set(example.inputs()), {"question", "evidence", "schema_ddl", "trajectory"})
             self.assertNotIn('"correct"', example.trajectory)
             self.assertNotIn('"gold_sql"', example.trajectory)
-        lm = DummyLM([{"rationale": "Evaluate answer logic", "score": float(example.correct)} for example in examples])
+        lm = DummyLM([{"rationale": "Evaluate answer logic", "score": float(example.correct)}
+                      for example in balance_verifier_examples(examples)])
         artifact = self.root / "compiled_verifier.json"
         compiled = compile_verifier(artifact, lm=lm)
         self.assertEqual(len(compiled.judge.demos), 8)
         state = json.loads(artifact.read_text(encoding="utf-8"))
         self.assertEqual(state[VERIFIER_MANIFEST_KEY]["training_source"], "synthetic_smoke_only")
         self.assertEqual(state[VERIFIER_MANIFEST_KEY]["score_kind"], "elicited_validity_rating")
+        self.assertEqual(state[VERIFIER_MANIFEST_KEY]["demonstration_class_counts"], {"correct": 4, "incorrect": 4})
         for demo in state["judge"]["demos"]:
             self.assertNotIn("correct", demo)
             self.assertNotIn("db_path", demo)
         self.assertIsNone(state["judge"]["lm"])
+
+    def test_class_quota_prevents_easy_negatives_from_filling_all_demo_slots(self):
+        # The model initially misrates positives, while accepting every negative.
+        # Keep searching after four easy negatives instead of stopping at eight.
+        examples = [dspy.Example(question=f"Question {index}", evidence="", schema_ddl="schema",
+                                trajectory=json.dumps({"final_sql": f"SELECT {index}"}), correct=label)
+                    .with_inputs("question", "evidence", "schema_ddl", "trajectory")
+                    for label in (False, True) for index in range(8)]
+        positive_seen = 0
+        answers = []
+        for example in balance_verifier_examples(examples):
+            if example.correct:
+                positive_seen += 1
+            score = 1.0 if example.correct and positive_seen > 4 else 0.0
+            answers.append({"rationale": "Assess candidate logic", "score": score})
+        artifact = self.root / "balanced.json"
+        with patch("src.dspy_optimizer.build_verifier_trainset", return_value=examples):
+            compiled = compile_verifier(artifact, lm=DummyLM(answers))
+        self.assertEqual(len(compiled.judge.demos), 8)
+        self.assertEqual(sum(float(demo.score) >= 0.5 for demo in compiled.judge.demos), 4)
+        manifest = json.loads(artifact.read_text())[VERIFIER_MANIFEST_KEY]
+        self.assertEqual(manifest["metric_evaluations"], 16)
+        self.assertEqual(manifest["training_class_counts"], {"correct": 8, "incorrect": 8})
+        for demo in compiled.judge.demos:
+            self.assertNotIn("correct", demo)
+            self.assertNotIn("gold_sql", demo)
+
+    def test_unsatisfied_quota_keeps_old_artifact_and_records_failure_with_billed_usage(self):
+        artifact = self.root / "existing.json"
+        artifact.write_text("previous valid artifact", encoding="utf-8")
+        scripted = DummyLM([{"rationale": "Always predicts incorrect", "score": 0.0}] * 8)
+        lm = OpenRouterLM(model=VERIFIER_MODEL, cache=False)
+
+        def response(prompt=None, messages=None, **kwargs):
+            result = scripted.forward(prompt=prompt, messages=messages, **kwargs)
+            result.model = VERIFIER_MODEL
+            result.usage.update(prompt_tokens=10, completion_tokens=2, total_tokens=12, cost=0.0001)
+            return result
+
+        with patch.object(dspy.LM, "forward", side_effect=response):
+            with self.assertRaisesRegex(RuntimeError, "correct=0/4, incorrect=4/4"):
+                compile_verifier(artifact, lm=lm)
+        self.assertEqual(artifact.read_text(), "previous valid artifact")
+        metrics = json.loads(artifact.with_suffix(".compilation.metrics.json").read_text())
+        self.assertIn("class quotas", metrics["error"])
+        self.assertEqual(metrics["accepted_demonstrations"], {"correct": 0, "incorrect": 4})
+        self.assertEqual(metrics["total_tokens"], 96)
+        self.assertAlmostEqual(metrics["cost_usd"], 0.0008)
+
+    def test_class_ordering_is_repeatable_and_does_not_modify_original_examples(self):
+        examples = build_verifier_trainset(self.trainset)
+        original = [example.toDict() for example in examples]
+        first = balance_verifier_examples(examples)
+        second = balance_verifier_examples(examples)
+        self.assertEqual([example.correct for example in first], [False, True] * 4)
+        self.assertEqual([example.toDict() for example in first], [example.toDict() for example in second])
+        self.assertEqual([example.toDict() for example in examples], original)
+        for example in first:
+            self.assertNotIn("correct", example.inputs())
 
     def test_training_split_and_batch_candidate_import(self):
         with self.assertRaisesRegex(ValueError, "training split"):

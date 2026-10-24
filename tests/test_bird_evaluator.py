@@ -115,6 +115,10 @@ class BirdEvaluatorIntegrationTests(unittest.TestCase):
         )
 
     def run_pipeline(self, responses, *, limit=None):
+        # Each subtest is a fresh experiment; evaluation outputs are protected.
+        self.pipeline_runs = getattr(self, "pipeline_runs", 0) + 1
+        if self.pipeline_runs > 1:
+            self.output_path = self.root / f"predictions_{self.pipeline_runs}.json"
         client = ScriptedClient(responses)
         graph = build_sql_graph(client=client, model_name="test-model")
         with patch("src.bird_evaluator.build_sql_graph", return_value=graph):

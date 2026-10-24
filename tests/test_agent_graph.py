@@ -126,6 +126,7 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertEqual(result["history"], [{
             "sql": JOIN_SQL, "observation": result["observation"],
             "action": "final_answer", "rationale": "Use the schema and previous database observation.",
+            "final_action_forced": False,
         }])
         observation = self.observation(result)
         self.assertEqual(observation.row_count, 2)
@@ -303,14 +304,37 @@ class SQLAgentGraphIntegrationTests(unittest.TestCase):
         self.assertIn("total", json.dumps(client.calls[2]["messages"]))
         self.assertEqual(json.loads(result["history"][0]["observation"])["sample_rows"], [[3]])
 
-    def test_budget_exhaustion_does_not_promote_successful_probe_to_answer(self):
+    def test_final_turn_forces_submission_without_an_extra_model_call(self):
         agent, _ = self.make_agent([
             {"action": "probe", "rationale": "Explore", "sql_query": "SELECT COUNT(*) FROM students"}
         ] * 5)
         result = self.run_agent(agent, max_turns=5)
         self.assertEqual(result["turn"], 5)
+        self.assertEqual(result["final_sql"], "SELECT COUNT(*) FROM students")
+        self.assertTrue(result["is_final"])
+        self.assertTrue(result["history"][-1]["final_action_forced"])
+        self.assertEqual([h["action"] for h in result["history"]], ["probe"] * 4 + ["final_answer"])
+        self.assertEqual(result["sql_execution_count"], 5)
+
+    def test_forced_final_submission_does_not_accept_invalid_sql(self):
+        agent, client = self.make_agent([
+            {"action": "probe", "rationale": "Explore", "sql_query": "SELECT absent FROM students"}
+        ])
+        result = self.run_agent(agent, max_turns=1)
         self.assertIsNone(result["final_sql"])
-        self.assertFalse(result["is_final"])
+        self.assertEqual(result["termination_reason"], "invalid_final_answer")
+        self.assertTrue(result["history"][-1]["final_action_forced"])
+        self.assertEqual(len(client.calls), 2)
+
+    def test_baseline_feedback_uses_plain_sql_and_observation_text(self):
+        sql = 'SELECT name AS "Student Name" FROM students'
+        agent, client = self.make_agent([sql, JOIN_SQL])
+        self.run_agent(agent)
+        prompt = client.calls[2]["messages"][-1]["content"]
+        self.assertIn(sql, prompt)
+        self.assertIn("columns:", prompt)
+        self.assertIn("Student Name", prompt)
+        self.assertNotIn('\\"', prompt)
 
     def test_invalid_explicit_final_submission_terminates_without_answer(self):
         agent, client = self.make_agent(["SELECT absent FROM students"])

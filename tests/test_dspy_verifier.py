@@ -148,6 +148,53 @@ class DSPyVerifierTests(unittest.TestCase):
         self.assertIn("different model", result["errors"][0]["error"])
         self.assertAlmostEqual(result["metrics"]["cost_usd"], 0.0001)
 
+    def test_rating_calls_do_not_request_probability_parameters(self):
+        lm = OpenRouterLM(model=VERIFIER_MODEL, cache=False)
+        verifier = TrajectoryVerifier()
+        verifier.set_lm(lm)
+        scripted = DummyLM([{"rationale": "Wrong filter", "score": 0.2},
+                            {"rationale": "Correct conditions", "score": 0.9}])
+        requests = []
+
+        def response(prompt=None, messages=None, **kwargs):
+            requests.append(kwargs)
+            result = scripted.forward(prompt=prompt, messages=messages, **kwargs)
+            result.model = VERIFIER_MODEL
+            result.usage.update(prompt_tokens=20, completion_tokens=5, total_tokens=25, cost=0.0001)
+            return result
+
+        with patch.object(dspy.LM, "forward", side_effect=response):
+            result = select_with_dspy("Q", "", "schema", self.candidates(), verifier=verifier)
+        self.assertEqual(result["selected_candidate_index"], 1)
+        self.assertEqual(result["score_kind"], "elicited_validity_rating")
+        self.assertEqual(result["metrics"]["total_tokens"], 50)
+        for request in requests:
+            self.assertNotIn("logprobs", request)
+            self.assertNotIn("top_logprobs", request)
+
+    def test_tracing_failure_retains_billed_rating_responses(self):
+        lm = OpenRouterLM(model=VERIFIER_MODEL, cache=False)
+        verifier = TrajectoryVerifier()
+        verifier.set_lm(lm)
+        scripted = DummyLM([{"rationale": "Correct conditions", "score": 0.9}])
+
+        def response(prompt=None, messages=None, **kwargs):
+            result = scripted.forward(prompt=prompt, messages=messages, **kwargs)
+            result.usage.update(prompt_tokens=20, completion_tokens=5, total_tokens=25, cost=0.0001)
+            return result
+
+        @contextmanager
+        def observation(**fields):
+            yield SimpleNamespace(update=Mock(side_effect=RuntimeError("trace update failed")))
+
+        client = SimpleNamespace(start_as_current_observation=observation, flush=Mock())
+        with patch.object(dspy.LM, "forward", side_effect=response):
+            with self.assertRaisesRegex(RuntimeError, "trace update failed") as caught:
+                select_with_dspy("Q", "", "schema", self.candidates()[:1],
+                                 verifier=verifier, langfuse_client=client)
+        self.assertEqual(caught.exception.mars_metrics["total_tokens"], 25)
+        self.assertAlmostEqual(caught.exception.mars_metrics["cost_usd"], 0.0001)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

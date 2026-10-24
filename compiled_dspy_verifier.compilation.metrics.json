@@ -1,0 +1,927 @@
+{
+  "stages": [
+    {
+      "stage": "verifier_compilation",
+      "turn": 0,
+      "prompt_tokens": 170473,
+      "completion_tokens": 9658,
+      "total_tokens": 180131,
+      "cost_usd": 0.0189789,
+      "model": "qwen/qwen-2.5-7b-instruct",
+      "lm_call_count": 97,
+      "llm_latency_seconds": 396.3022668004269,
+      "latency_seconds": 407.64177540002856,
+      "error": null,
+      "calls": [
+        {
+          "response_id": "gen-1792780589-c6qOgOHm8gzxOZ98b1se",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 3672,
+          "completion_tokens": 109,
+          "total_tokens": 3781,
+          "cost_usd": 0.000389,
+          "latency_seconds": 21.13391330000013
+        },
+        {
+          "response_id": "gen-1792780594-Sng2yVsOCpoDFleaPvqm",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1103,
+          "completion_tokens": 82,
+          "total_tokens": 1185,
+          "cost_usd": 0.0001267,
+          "latency_seconds": 2.7960787000483833
+        },
+        {
+          "response_id": "gen-1792780597-7OrDLAEKtk10SdIMSqnY",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1647,
+          "completion_tokens": 73,
+          "total_tokens": 1720,
+          "cost_usd": 0.0001793,
+          "latency_seconds": 2.0172899999888614
+        },
+        {
+          "response_id": "gen-1792780599-pnDppEAvuOAQLuUkHBZL",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2224,
+          "completion_tokens": 129,
+          "total_tokens": 2353,
+          "cost_usd": 0.0002482,
+          "latency_seconds": 4.071762600040529
+        },
+        {
+          "response_id": "gen-1792780603-i8Dj4QyYli2ngl33oKTp",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1705,
+          "completion_tokens": 80,
+          "total_tokens": 1785,
+          "cost_usd": 0.0001865,
+          "latency_seconds": 2.4283494999981485
+        },
+        {
+          "response_id": "gen-1792780606-BsWJsPnEUOx60vW928Ef",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1119,
+          "completion_tokens": 76,
+          "total_tokens": 1195,
+          "cost_usd": 0.0001271,
+          "latency_seconds": 2.3235291999881156
+        },
+        {
+          "response_id": "gen-1792780608-ADJdNj2SuVh6xzfbiSnY",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1698,
+          "completion_tokens": 103,
+          "total_tokens": 1801,
+          "cost_usd": 0.0001904,
+          "latency_seconds": 2.32304650003789
+        },
+        {
+          "response_id": "gen-1792780611-bJ3b139jma6XrZGVtcaz",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1061,
+          "completion_tokens": 104,
+          "total_tokens": 1165,
+          "cost_usd": 0.0001269,
+          "latency_seconds": 2.5331874000257812
+        },
+        {
+          "response_id": "gen-1792780614-lFACBP0mFCA0unkqVbdr",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 4184,
+          "completion_tokens": 81,
+          "total_tokens": 4265,
+          "cost_usd": 0.0004346,
+          "latency_seconds": 2.408324400021229
+        },
+        {
+          "response_id": "gen-1792780616-6HV540owUspvAHm0Cdi4",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1075,
+          "completion_tokens": 84,
+          "total_tokens": 1159,
+          "cost_usd": 0.0001243,
+          "latency_seconds": 2.324110899993684
+        },
+        {
+          "response_id": "gen-1792780619-pFGPbqmQFsy3kGNvnayY",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1181,
+          "completion_tokens": 78,
+          "total_tokens": 1259,
+          "cost_usd": 0.0001337,
+          "latency_seconds": 3.991199799987953
+        },
+        {
+          "response_id": "gen-1792780623-pvoMAHAI4g6XhoCZVH3m",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1000,
+          "completion_tokens": 58,
+          "total_tokens": 1058,
+          "cost_usd": 0.0001116,
+          "latency_seconds": 3.145620500028599
+        },
+        {
+          "response_id": "gen-1792780626-q1QMWRHOJDlPWdrv9uFe",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1830,
+          "completion_tokens": 118,
+          "total_tokens": 1948,
+          "cost_usd": 0.0002066,
+          "latency_seconds": 6.015773999970406
+        },
+        {
+          "response_id": "gen-1792780632-08oflhw4v5KQygkcxnbI",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1144,
+          "completion_tokens": 80,
+          "total_tokens": 1224,
+          "cost_usd": 0.0001304,
+          "latency_seconds": 2.538444800011348
+        },
+        {
+          "response_id": "gen-1792780635-D2w9cv23LbqATiyjFRMx",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1440,
+          "completion_tokens": 104,
+          "total_tokens": 1544,
+          "cost_usd": 0.0001648,
+          "latency_seconds": 4.263287200010382
+        },
+        {
+          "response_id": "gen-1792780639-gSSOCvxdGDpx6seO14W7",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1728,
+          "completion_tokens": 96,
+          "total_tokens": 1824,
+          "cost_usd": 0.000192,
+          "latency_seconds": 3.6336512999841943
+        },
+        {
+          "response_id": "gen-1792780643-QvARepgo7nMkHs84k9H6",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2431,
+          "completion_tokens": 116,
+          "total_tokens": 2547,
+          "cost_usd": 0.0002663,
+          "latency_seconds": 5.020520000020042
+        },
+        {
+          "response_id": "gen-1792780648-LPUgp7gBGjcQcwQQfXth",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1599,
+          "completion_tokens": 160,
+          "total_tokens": 1759,
+          "cost_usd": 0.0001919,
+          "latency_seconds": 5.5053425000514835
+        },
+        {
+          "response_id": "gen-1792780654-YbwxEdolohCyCCIydKbN",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1534,
+          "completion_tokens": 127,
+          "total_tokens": 1661,
+          "cost_usd": 0.0001788,
+          "latency_seconds": 5.391273899993394
+        },
+        {
+          "response_id": "gen-1792780659-7V4vacthosnemMNrvdKD",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1592,
+          "completion_tokens": 125,
+          "total_tokens": 1717,
+          "cost_usd": 0.0001842,
+          "latency_seconds": 5.194620999973267
+        },
+        {
+          "response_id": "gen-1792780665-TgJ2bVOzn65QOBRN3IJz",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1565,
+          "completion_tokens": 107,
+          "total_tokens": 1672,
+          "cost_usd": 0.0001779,
+          "latency_seconds": 2.931016799993813
+        },
+        {
+          "response_id": "gen-1792780668-xEjANTdRW8mvTFQ4A2xr",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1062,
+          "completion_tokens": 91,
+          "total_tokens": 1153,
+          "cost_usd": 0.0001244,
+          "latency_seconds": 2.347526300000027
+        },
+        {
+          "response_id": "gen-1792780670-jIkXtsEJJYHhjW8OkWrq",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1962,
+          "completion_tokens": 126,
+          "total_tokens": 2088,
+          "cost_usd": 0.0002214,
+          "latency_seconds": 3.3789504999876954
+        },
+        {
+          "response_id": "gen-1792780674-74ox0lhWNEFwsPbjWAb4",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 997,
+          "completion_tokens": 82,
+          "total_tokens": 1079,
+          "cost_usd": 0.0001161,
+          "latency_seconds": 2.33435429999372
+        },
+        {
+          "response_id": "gen-1792780676-UEWI2aC5he2W04E3nHdz",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 3801,
+          "completion_tokens": 150,
+          "total_tokens": 3951,
+          "cost_usd": 0.0004101,
+          "latency_seconds": 3.837542499997653
+        },
+        {
+          "response_id": "gen-1792780680-YdsOwXYHSHD6ThfTp9Dx",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1049,
+          "completion_tokens": 73,
+          "total_tokens": 1122,
+          "cost_usd": 0.0001195,
+          "latency_seconds": 1.816816100035794
+        },
+        {
+          "response_id": "gen-1792780682-LRYFyYFG6S6rcUHp4SEV",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1244,
+          "completion_tokens": 84,
+          "total_tokens": 1328,
+          "cost_usd": 0.0001412,
+          "latency_seconds": 1.7055544999893755
+        },
+        {
+          "response_id": "gen-1792780684-Gzo3rytyIJbPfdRHa66K",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1169,
+          "completion_tokens": 78,
+          "total_tokens": 1247,
+          "cost_usd": 0.0001325,
+          "latency_seconds": 2.455049999989569
+        },
+        {
+          "response_id": "gen-1792780686-X4gfTFvoWPgR7w2cJM4J",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 3034,
+          "completion_tokens": 166,
+          "total_tokens": 3200,
+          "cost_usd": 0.0003366,
+          "latency_seconds": 5.051653700007591
+        },
+        {
+          "response_id": "gen-1792780692-22vWf4G7kqSJO2S3Hkbs",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1114,
+          "completion_tokens": 79,
+          "total_tokens": 1193,
+          "cost_usd": 0.0001272,
+          "latency_seconds": 2.005550100002438
+        },
+        {
+          "response_id": "gen-1792780694-dBxV33DYzZi3QG86o89Q",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2422,
+          "completion_tokens": 95,
+          "total_tokens": 2517,
+          "cost_usd": 0.0002612,
+          "latency_seconds": 3.083479599968996
+        },
+        {
+          "response_id": "gen-1792780697-W4jJAcg23SgTsTRSaJYP",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1047,
+          "completion_tokens": 71,
+          "total_tokens": 1118,
+          "cost_usd": 0.0001189,
+          "latency_seconds": 3.9773434000089765
+        },
+        {
+          "response_id": "gen-1792780701-SbQdAYjNDKNt64LgJSQA",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 4925,
+          "completion_tokens": 108,
+          "total_tokens": 5033,
+          "cost_usd": 0.0005141,
+          "latency_seconds": 3.7752597000217065
+        },
+        {
+          "response_id": "gen-1792780705-2lKdKG209oV3yuasJ8GM",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1017,
+          "completion_tokens": 69,
+          "total_tokens": 1086,
+          "cost_usd": 0.0001155,
+          "latency_seconds": 1.5290526999742724
+        },
+        {
+          "response_id": "gen-1792780707-2NL495a69GWwyNMRuk2n",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1425,
+          "completion_tokens": 94,
+          "total_tokens": 1519,
+          "cost_usd": 0.0001613,
+          "latency_seconds": 3.5729176999884658
+        },
+        {
+          "response_id": "gen-1792780710-m0KxyvjEX85KjwSpAswz",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1077,
+          "completion_tokens": 96,
+          "total_tokens": 1173,
+          "cost_usd": 0.0001269,
+          "latency_seconds": 3.4694687000010163
+        },
+        {
+          "response_id": "gen-1792780714-rTJiBinb7nTH3QiSlQdw",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 6828,
+          "completion_tokens": 196,
+          "total_tokens": 7024,
+          "cost_usd": 0.000722,
+          "latency_seconds": 7.829101299983449
+        },
+        {
+          "response_id": "gen-1792780722-XXalJHKX0s0ELZkP8OwJ",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1079,
+          "completion_tokens": 88,
+          "total_tokens": 1167,
+          "cost_usd": 0.0001255,
+          "latency_seconds": 3.0665219000075012
+        },
+        {
+          "response_id": "gen-1792780725-IYhPIuvemgA9M3DHcbcR",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2144,
+          "completion_tokens": 129,
+          "total_tokens": 2273,
+          "cost_usd": 0.0002402,
+          "latency_seconds": 4.47130139998626
+        },
+        {
+          "response_id": "gen-1792780730-3tUuQnDJG0PUM0cpAunZ",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1057,
+          "completion_tokens": 77,
+          "total_tokens": 1134,
+          "cost_usd": 0.0001211,
+          "latency_seconds": 4.001502999977674
+        },
+        {
+          "response_id": "gen-1792780734-vbWVYu1BBKFpAUYir4Uq",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1709,
+          "completion_tokens": 73,
+          "total_tokens": 1782,
+          "cost_usd": 0.0001855,
+          "latency_seconds": 3.9309791999985464
+        },
+        {
+          "response_id": "gen-1792780738-7K7gwsFnk6ZiuhBaSMBV",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1585,
+          "completion_tokens": 76,
+          "total_tokens": 1661,
+          "cost_usd": 0.0001737,
+          "latency_seconds": 4.8024030000087805
+        },
+        {
+          "response_id": "gen-1792780743-jCCotfmYlsFVJiG36rLv",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1612,
+          "completion_tokens": 88,
+          "total_tokens": 1700,
+          "cost_usd": 0.0001788,
+          "latency_seconds": 7.869974000030197
+        },
+        {
+          "response_id": "gen-1792780751-hZrUnZXvwvt0VBDjSmKP",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 3065,
+          "completion_tokens": 101,
+          "total_tokens": 3166,
+          "cost_usd": 0.0003267,
+          "latency_seconds": 9.777638100029435
+        },
+        {
+          "response_id": "gen-1792780761-fMMHpI9kgvZm0gRMIyl1",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1726,
+          "completion_tokens": 92,
+          "total_tokens": 1818,
+          "cost_usd": 0.000191,
+          "latency_seconds": 7.812703199975658
+        },
+        {
+          "response_id": "gen-1792780769-on2jtekG4KWCYmYxQOA3",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1222,
+          "completion_tokens": 108,
+          "total_tokens": 1330,
+          "cost_usd": 0.0001438,
+          "latency_seconds": 3.6649636999936774
+        },
+        {
+          "response_id": "gen-1792780772-nlA2lc6CrTHUUFEmqfhf",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1419,
+          "completion_tokens": 88,
+          "total_tokens": 1507,
+          "cost_usd": 0.0001595,
+          "latency_seconds": 3.53280020004604
+        },
+        {
+          "response_id": "gen-1792780776-O8G7Owb0S7DcDHVfidFs",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1166,
+          "completion_tokens": 84,
+          "total_tokens": 1250,
+          "cost_usd": 0.0001334,
+          "latency_seconds": 3.101873300038278
+        },
+        {
+          "response_id": "gen-1792780779-Lx11txn2speF4oWn3sH7",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2163,
+          "completion_tokens": 129,
+          "total_tokens": 2292,
+          "cost_usd": 0.0002421,
+          "latency_seconds": 2.863732500001788
+        },
+        {
+          "response_id": "gen-1792780782-nVorKVzehbDlJImoX4vS",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1025,
+          "completion_tokens": 119,
+          "total_tokens": 1144,
+          "cost_usd": 0.0001263,
+          "latency_seconds": 3.4675529000232928
+        },
+        {
+          "response_id": "gen-1792780785-InI37cI14vaxunognC1X",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1644,
+          "completion_tokens": 75,
+          "total_tokens": 1719,
+          "cost_usd": 0.0001794,
+          "latency_seconds": 2.112195800000336
+        },
+        {
+          "response_id": "gen-1792780788-PLaM7qIatJWYmQCJOq8x",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1152,
+          "completion_tokens": 76,
+          "total_tokens": 1228,
+          "cost_usd": 0.0001304,
+          "latency_seconds": 1.8919797000125982
+        },
+        {
+          "response_id": "gen-1792780790-iEkOHJgctOPUM97nCni6",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1788,
+          "completion_tokens": 115,
+          "total_tokens": 1903,
+          "cost_usd": 0.0002018,
+          "latency_seconds": 3.37234509998234
+        },
+        {
+          "response_id": "gen-1792780793-wTf5AUjJ1B93YMT70Nq2",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 996,
+          "completion_tokens": 91,
+          "total_tokens": 1087,
+          "cost_usd": 0.0001178,
+          "latency_seconds": 2.216745899990201
+        },
+        {
+          "response_id": "gen-1792780795-FDpzzhJEOdgSKCZ3Juhv",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1815,
+          "completion_tokens": 85,
+          "total_tokens": 1900,
+          "cost_usd": 0.0001985,
+          "latency_seconds": 2.12594060000265
+        },
+        {
+          "response_id": "gen-1792780797-HSjAM0g5XQQSmicG9JgJ",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1102,
+          "completion_tokens": 87,
+          "total_tokens": 1189,
+          "cost_usd": 0.0001276,
+          "latency_seconds": 2.0941625999985263
+        },
+        {
+          "response_id": "gen-1792780799-WgXcl9n5OWJORsY7esIR",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1176,
+          "completion_tokens": 109,
+          "total_tokens": 1285,
+          "cost_usd": 0.0001394,
+          "latency_seconds": 4.293599000026006
+        },
+        {
+          "response_id": "gen-1792780804-yoqokyCBKETPzTVto817",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1086,
+          "completion_tokens": 93,
+          "total_tokens": 1179,
+          "cost_usd": 0.0001272,
+          "latency_seconds": 5.61762059998
+        },
+        {
+          "response_id": "gen-1792780809-aQg7mg2K7Mqg0Y1EUy3N",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1195,
+          "completion_tokens": 74,
+          "total_tokens": 1269,
+          "cost_usd": 0.0001343,
+          "latency_seconds": 5.094577899959404
+        },
+        {
+          "response_id": "gen-1792780815-0kDVDzYT3Epm4JRrc8W6",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2273,
+          "completion_tokens": 126,
+          "total_tokens": 2399,
+          "cost_usd": 0.0002525,
+          "latency_seconds": 6.250900300045032
+        },
+        {
+          "response_id": "gen-1792780821-lw2PHVcf6dch6ugdJ17w",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2301,
+          "completion_tokens": 110,
+          "total_tokens": 2411,
+          "cost_usd": 0.0002521,
+          "latency_seconds": 7.914690200006589
+        },
+        {
+          "response_id": "gen-1792780829-nAGyUBgOfCszLJTTRE69",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1170,
+          "completion_tokens": 88,
+          "total_tokens": 1258,
+          "cost_usd": 0.0001346,
+          "latency_seconds": 6.193441300012637
+        },
+        {
+          "response_id": "gen-1792780835-zsXnlrZYNRAOiJoPAhmx",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 7880,
+          "completion_tokens": 107,
+          "total_tokens": 7987,
+          "cost_usd": 0.0008094,
+          "latency_seconds": 7.048763800004963
+        },
+        {
+          "response_id": "gen-1792780842-HQ6lWMeS8ilbdZtcHrPU",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1155,
+          "completion_tokens": 84,
+          "total_tokens": 1239,
+          "cost_usd": 0.0001323,
+          "latency_seconds": 4.817183499981184
+        },
+        {
+          "response_id": "gen-1792780847-COWJeTYKlqrM7Id3sKsj",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1208,
+          "completion_tokens": 78,
+          "total_tokens": 1286,
+          "cost_usd": 0.0001364,
+          "latency_seconds": 3.365325800026767
+        },
+        {
+          "response_id": "gen-1792780850-BX0wzrMjrDeik7hpa9pg",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1154,
+          "completion_tokens": 90,
+          "total_tokens": 1244,
+          "cost_usd": 0.0001334,
+          "latency_seconds": 3.2998850000440143
+        },
+        {
+          "response_id": "gen-1792780854-0lzaBSV4kXZHJjAC3DNp",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2146,
+          "completion_tokens": 141,
+          "total_tokens": 2287,
+          "cost_usd": 0.0002428,
+          "latency_seconds": 5.206754999991972
+        },
+        {
+          "response_id": "gen-1792780859-hc8Et1M2Hp385eqRWSDy",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1395,
+          "completion_tokens": 96,
+          "total_tokens": 1491,
+          "cost_usd": 0.0001587,
+          "latency_seconds": 3.0222860000212677
+        },
+        {
+          "response_id": "gen-1792780862-3FmgtHugGhwbEQGTeHtG",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 4087,
+          "completion_tokens": 98,
+          "total_tokens": 4185,
+          "cost_usd": 0.0004283,
+          "latency_seconds": 6.490534499986097
+        },
+        {
+          "response_id": "gen-1792780869-yTWItGeuGazRhTqmfBQh",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1126,
+          "completion_tokens": 87,
+          "total_tokens": 1213,
+          "cost_usd": 0.00013,
+          "latency_seconds": 6.652256699977443
+        },
+        {
+          "response_id": "gen-1792780875-5dJMCC4RdjZXTExHU1IX",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1689,
+          "completion_tokens": 87,
+          "total_tokens": 1776,
+          "cost_usd": 0.0001863,
+          "latency_seconds": 3.9712250999873504
+        },
+        {
+          "response_id": "gen-1792780879-Wn3CuUoTqFdRW8RPtzgV",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1074,
+          "completion_tokens": 100,
+          "total_tokens": 1174,
+          "cost_usd": 0.0001274,
+          "latency_seconds": 4.4342397000291385
+        },
+        {
+          "response_id": "gen-1792780884-wvA8KPlWNLoIkRnlTP9t",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2248,
+          "completion_tokens": 104,
+          "total_tokens": 2352,
+          "cost_usd": 0.0002456,
+          "latency_seconds": 3.878964800038375
+        },
+        {
+          "response_id": "gen-1792780888-MS7XgxOiwJILN7q90ReE",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1218,
+          "completion_tokens": 95,
+          "total_tokens": 1313,
+          "cost_usd": 0.0001408,
+          "latency_seconds": 2.0599068999872543
+        },
+        {
+          "response_id": "gen-1792780890-KDjh5alUYp4uouLbR1sI",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 996,
+          "completion_tokens": 108,
+          "total_tokens": 1104,
+          "cost_usd": 0.0001212,
+          "latency_seconds": 4.3206093000480905
+        },
+        {
+          "response_id": "gen-1792780894-A3ZdNVDiQGl7bAD6HpMb",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1123,
+          "completion_tokens": 70,
+          "total_tokens": 1193,
+          "cost_usd": 0.0001263,
+          "latency_seconds": 2.133469699998386
+        },
+        {
+          "response_id": "gen-1792780896-85RBKCXnzsJpnC196NYP",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1645,
+          "completion_tokens": 105,
+          "total_tokens": 1750,
+          "cost_usd": 0.0001855,
+          "latency_seconds": 3.549734400003217
+        },
+        {
+          "response_id": "gen-1792780900-UI5hP7YnXhdTHKAy9rSc",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1098,
+          "completion_tokens": 90,
+          "total_tokens": 1188,
+          "cost_usd": 0.0001278,
+          "latency_seconds": 1.773894999991171
+        },
+        {
+          "response_id": "gen-1792780902-rcQlU06RutA0yqIbKy6E",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1719,
+          "completion_tokens": 148,
+          "total_tokens": 1867,
+          "cost_usd": 0.0002015,
+          "latency_seconds": 2.4620713000185788
+        },
+        {
+          "response_id": "gen-1792780904-G72tmyxGx9KhRDgUGJjd",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1089,
+          "completion_tokens": 92,
+          "total_tokens": 1181,
+          "cost_usd": 0.0001273,
+          "latency_seconds": 2.0427002999931574
+        },
+        {
+          "response_id": "gen-1792780906-dvEcnycE3u34etrTdsWF",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1523,
+          "completion_tokens": 125,
+          "total_tokens": 1648,
+          "cost_usd": 0.0001773,
+          "latency_seconds": 3.0994774000137113
+        },
+        {
+          "response_id": "gen-1792780909-ry5nkRgoqJsLckFWJDjf",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1471,
+          "completion_tokens": 122,
+          "total_tokens": 1593,
+          "cost_usd": 0.0001715,
+          "latency_seconds": 3.2342014000169
+        },
+        {
+          "response_id": "gen-1792780913-nWzGjmEvu1bjtojzWMjS",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1465,
+          "completion_tokens": 103,
+          "total_tokens": 1568,
+          "cost_usd": 0.0001671,
+          "latency_seconds": 2.0904305999865755
+        },
+        {
+          "response_id": "gen-1792780915-zJvYKQxwXVmz016VaBXZ",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1138,
+          "completion_tokens": 89,
+          "total_tokens": 1227,
+          "cost_usd": 0.0001316,
+          "latency_seconds": 1.7218690000008792
+        },
+        {
+          "response_id": "gen-1792780916-kNFwZtOzKgQDiJMB5rDE",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2053,
+          "completion_tokens": 90,
+          "total_tokens": 2143,
+          "cost_usd": 0.0002233,
+          "latency_seconds": 2.699607099988498
+        },
+        {
+          "response_id": "gen-1792780919-mr4dNFGhqRiL09Ews53C",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1064,
+          "completion_tokens": 87,
+          "total_tokens": 1151,
+          "cost_usd": 0.0001238,
+          "latency_seconds": 1.990966400015168
+        },
+        {
+          "response_id": "gen-1792780921-9UTDWodaTT3dyWdFx0gm",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1700,
+          "completion_tokens": 93,
+          "total_tokens": 1793,
+          "cost_usd": 0.0001886,
+          "latency_seconds": 6.337580199993681
+        },
+        {
+          "response_id": "gen-1792780928-BOWsiyVKQQnCUK1Utnqo",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2292,
+          "completion_tokens": 173,
+          "total_tokens": 2465,
+          "cost_usd": 0.0002638,
+          "latency_seconds": 7.545031799993012
+        },
+        {
+          "response_id": "gen-1792780935-DlQQymhLrCGHpCAwqeVO",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1310,
+          "completion_tokens": 96,
+          "total_tokens": 1406,
+          "cost_usd": 0.0001502,
+          "latency_seconds": 4.559933500015177
+        },
+        {
+          "response_id": "gen-1792780940-NRSijBe57599ajo4kqTQ",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1046,
+          "completion_tokens": 88,
+          "total_tokens": 1134,
+          "cost_usd": 0.0001222,
+          "latency_seconds": 5.659714000008535
+        },
+        {
+          "response_id": "gen-1792780945-1GRZZh5PqJD5xpIlNOpH",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2109,
+          "completion_tokens": 99,
+          "total_tokens": 2208,
+          "cost_usd": 0.0002307,
+          "latency_seconds": 5.865548800036777
+        },
+        {
+          "response_id": "gen-1792780951-RAWOE4vGQK2JQWnbOdRZ",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1074,
+          "completion_tokens": 75,
+          "total_tokens": 1149,
+          "cost_usd": 0.0001224,
+          "latency_seconds": 5.466851599980146
+        },
+        {
+          "response_id": "gen-1792780957-G4StUBz3EDsLrQhZf5C5",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1694,
+          "completion_tokens": 93,
+          "total_tokens": 1787,
+          "cost_usd": 0.000188,
+          "latency_seconds": 6.157638299977407
+        },
+        {
+          "response_id": "gen-1792780963-jDRKZeEf1ngqZKzBKU5S",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1396,
+          "completion_tokens": 106,
+          "total_tokens": 1502,
+          "cost_usd": 0.0001608,
+          "latency_seconds": 3.9876304999925196
+        },
+        {
+          "response_id": "gen-1792780967-POSbMokblEedhdN9PQVP",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2505,
+          "completion_tokens": 137,
+          "total_tokens": 2642,
+          "cost_usd": 0.0002779,
+          "latency_seconds": 4.502759800001513
+        },
+        {
+          "response_id": "gen-1792780971-mkt6plbLxBk2kHvFeefv",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 1057,
+          "completion_tokens": 81,
+          "total_tokens": 1138,
+          "cost_usd": 0.0001219,
+          "latency_seconds": 3.0822312000091188
+        },
+        {
+          "response_id": "gen-1792780975-xKyxKit921mQ7VViSknP",
+          "model": "qwen/qwen-2.5-7b-instruct",
+          "prompt_tokens": 2151,
+          "completion_tokens": 92,
+          "total_tokens": 2243,
+          "cost_usd": 0.0002335,
+          "latency_seconds": 2.0688776000170037
+        }
+      ]
+    }
+  ],
+  "sql_attempts": 0,
+  "self_correction_cycles": 0,
+  "lm_call_count": 97,
+  "llm_latency_seconds": 396.3022668004269,
+  "latency_seconds": 407.64177540002856,
+  "prompt_tokens": 170473,
+  "observed_prompt_tokens": 170473,
+  "completion_tokens": 9658,
+  "observed_completion_tokens": 9658,
+  "total_tokens": 180131,
+  "observed_total_tokens": 180131,
+  "cost_usd": 0.0189789,
+  "observed_cost_usd": 0.0189789,
+  "accounting_complete": true,
+  "bootstrap_strategy": "class_balanced_quotas",
+  "sampling_seed": 0,
+  "verifier_training_examples": 170,
+  "metric_evaluations": 97,
+  "training_class_counts": {
+    "correct": 71,
+    "incorrect": 99
+  },
+  "demonstration_targets": {
+    "correct": 4,
+    "incorrect": 4
+  },
+  "accepted_demonstrations": {
+    "correct": 4,
+    "incorrect": 4
+  },
+  "demonstration_class_counts": {
+    "correct": 4,
+    "incorrect": 4
+  },
+  "error": null
+}

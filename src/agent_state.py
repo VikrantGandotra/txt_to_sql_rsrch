@@ -65,6 +65,7 @@ class AgentState(TypedDict):
     current_action: NotRequired[Literal["probe", "final_answer"]]
     rationale: NotRequired[str]
     is_final: NotRequired[bool]
+    final_action_forced: NotRequired[bool]  # Budget policy changed a probe into a submission.
     sql_execution_count: NotRequired[int]
     self_correction_cycles: NotRequired[int]  # Decisions made after failed SQL execution.
     candidate_index: NotRequired[int]

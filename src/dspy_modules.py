@@ -24,8 +24,21 @@ def provider_model_id(model: str) -> str:
 class DecomposerSignature(dspy.Signature):
     """Plan a SQLite query using only the supplied schema and question.
 
+    Treat schema_ddl as the authoritative source of table and column names.
+    Copy every base table and column identifier EXACTLY as written in the DDL,
+    preserving spaces, punctuation, capitalization, and spelling. Never replace
+    spaces or punctuation with underscores or invent normalized identifiers.
+    Use SQLite double-quoted identifiers, especially for names containing
+    spaces, punctuation, or reserved words: "School Name", not School_Name.
+    Use single quotes for string values. Aliases may be introduced explicitly;
+    they do not create or rename columns in the underlying schema.
+
     Identify the relevant tables, projected columns, joins, filters, grouping,
     aggregation, ordering and limits. Use any evidence included in the question.
+    Verify that each column belongs to the table used in the plan. If supplied
+    SQLite feedback reports 'no such column', you MUST consult schema_ddl and
+    correct the identifier spelling, quoting, or table qualification before
+    proposing another query. Never assume a failed identifier exists.
     """
 
     question: str = dspy.InputField(desc="User question and any supporting evidence.")
@@ -36,12 +49,29 @@ class DecomposerSignature(dspy.Signature):
 class GeneratorSignature(dspy.Signature):
     """Choose one read-only SQLite action, including CTEs when needed.
 
-    Follow the logical plan and schema. If the question includes observations
-    from previous actions, use the rows or repair errors without changing the
-    user's intent. Set action=probe to execute exploratory SQL and continue with
-    its observation. Set action=final_answer ONLY to submit the final solution.
-    A successful probe does not finish the task. The last available iteration
-    must submit the final answer. Return executable SQL without Markdown fences.
+    Treat schema_ddl as authoritative, including when the logical_plan or a
+    previous query contradicts it. Before emitting SQL, verify every base table
+    and column reference against the DDL and its owning table. Copy identifiers
+    EXACTLY, preserving spaces, punctuation, capitalization, and spelling.
+    Never invent normalized names or replace spaces with underscores.
+    Use SQLite double-quoted identifiers, especially for names containing
+    spaces, punctuation, or reserved words: "School Name", not School_Name.
+    Use single quotes for string values. Introduce aliases explicitly and
+    qualify columns with the correct table or alias when needed.
+
+    Read all supplied SQLite observations. If an observation reports 'no such
+    column', you MUST consult schema_ddl and correct the offending identifier's
+    spelling, quoting, or table qualification BEFORE attempting another query.
+    Do not repeat the same invalid identifier or claim it exists without
+    checking the DDL. Repair an incorrect logical plan when necessary. Preserve
+    the question's required outputs, filters, and calculations while repairing
+    SQL; do not discard required columns or conditions merely to avoid errors.
+
+    Set action=probe to execute exploratory SQL and continue with its rows or
+    errors as observations. Set action=final_answer ONLY to submit the final
+    solution. A successful probe does not finish the task. The last available
+    iteration must submit the final answer. Return executable SQL without
+    Markdown fences.
     """
 
     question: str = dspy.InputField(desc="Question, evidence, and any execution feedback.")
