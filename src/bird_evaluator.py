@@ -113,7 +113,7 @@ def run_bird_evaluation(
                         ("max_workers", max_workers), ("verification_samples", verification_samples)):
         if isinstance(value, bool) or not isinstance(value, int) or value < 1:
             raise ValueError(f"{name} must be a positive integer")
-    if selection_mode not in {"self_consistency", "dspy_verifier", "hybrid_cascade"}:
+    if selection_mode not in {"self_consistency", "dspy_verifier", "hybrid_cascade", "self_consistency_verifier"}:
         raise ValueError("Unknown selection_mode")
     if prompt_mode not in {"uncompiled_dspy", "compiled_dspy", "baseline"}:
         raise ValueError("Unknown prompt_mode")
@@ -156,7 +156,7 @@ def run_bird_evaluation(
     query_metrics: list[dict[str, Any]] = []
     apps = None
     verifier = None
-    if selection_mode in {"dspy_verifier", "hybrid_cascade"} and data:
+    if selection_mode in {"dspy_verifier", "hybrid_cascade", "self_consistency_verifier"} and data:
         from src.dspy_verifier import COMPILED_VERIFIER_PATH
         verifier_path = str(verifier_path or COMPILED_VERIFIER_PATH)
 
@@ -326,6 +326,12 @@ def run_bird_evaluation(
                     )
                 elif selection_mode == "hybrid_cascade":
                     selection = select_hybrid_cascade(
+                        question, evidence, ddl, candidates,
+                        verification_samples=verification_samples, judge=select_rating,
+                    )
+                elif selection_mode == "self_consistency_verifier":
+                    selection_started = True
+                    selection = select_self_consistency_verifier(
                         question, evidence, ddl, candidates,
                         verification_samples=verification_samples, judge=select_rating,
                     )
@@ -556,6 +562,68 @@ def select_self_consistency(candidates):
     winner = min(groups.values(), key=lambda indices: (-len(indices), min(indices))) if groups else []
     return {"mode": "self_consistency", "selected_candidate_index": min(winner) if winner else None,
             "groups": groups, "extra_llm_calls": 0}
+
+
+def select_self_consistency_verifier(
+    question, evidence, schema_ddl, candidates, *, verification_samples=1, judge=None,
+):
+    """Judge the earliest trajectory from EVERY distinct execution-result group.
+
+    Highest DSPy rating wins; equal ratings use group vote count, then original
+    candidate index. No weighted score, gold SQL, or EX label enters selection.
+    Even a unanimous group is judged. Existing hybrid and verifier modes retain
+    their separate policies.
+    """
+    baseline = select_self_consistency(candidates)
+    groups = baseline["groups"]
+    representative_votes = {min(indices): len(indices) for indices in groups.values()}
+    representatives = sorted(
+        (candidate for candidate in candidates if candidate["candidate_index"] in representative_votes),
+        key=lambda candidate: candidate["candidate_index"],
+    )
+    selection = {
+        "mode": "self_consistency_verifier", "selected_candidate_index": None,
+        "groups": groups, "representative_indices": [candidate["candidate_index"] for candidate in representatives],
+        "representative_votes": [{"candidate_index": index, "votes": votes}
+                                 for index, votes in sorted(representative_votes.items())],
+        "selection_policy": "rating_then_votes_then_earliest_index",
+        "selection_source": "dspy_verifier", "judge_engaged": bool(representatives),
+        "score_kind": "elicited_validity_rating", "verification_samples": verification_samples,
+        "scores": [], "errors": [], "extra_llm_calls": 0,
+    }
+    if not representatives:
+        return selection
+    try:
+        if judge is None:
+            from src.dspy_verifier import select_with_dspy
+            judge = select_with_dspy
+        judged = judge(question, evidence, schema_ddl, representatives,
+                       verification_samples=verification_samples)
+        selection.update({key: judged[key] for key in ("metrics", "scores", "errors") if key in judged})
+        selection["extra_llm_calls"] = judged.get("metrics", {}).get("lm_call_count")
+        if judged.get("errors") or judged.get("selected_candidate_index") is None:
+            return selection
+        if judged["selected_candidate_index"] not in representative_votes:
+            raise ValueError("DSPy verifier selected a nonrepresentative candidate")
+        ratings = {}
+        for row in judged.get("scores", []):
+            index, score = row.get("candidate_index"), row.get("score")
+            if (index not in representative_votes or index in ratings or isinstance(score, bool)
+                    or not isinstance(score, (int, float)) or not math.isfinite(score) or not 0 <= score <= 1):
+                raise ValueError("DSPy verifier returned an invalid representative rating")
+            ratings[index] = score
+        if set(ratings) != set(representative_votes):
+            raise ValueError("DSPy verifier did not rate every execution-group representative")
+        selection["selected_candidate_index"] = min(
+            ratings, key=lambda index: (-ratings[index], -representative_votes[index], index)
+        )
+        return selection
+    except Exception as error:
+        selection["selected_candidate_index"] = None
+        if selection.get("metrics") is not None:
+            error.mars_metrics = selection["metrics"]
+        error.mars_selection = selection
+        raise
 
 
 def select_hybrid_cascade(

@@ -1,0 +1,4 @@
+{
+  "0": "SELECT MAX(T1.\"Percent (%) Eligible Free (K-12)\") AS highest_eligible_free_rate \nFROM frpm AS T1 \nJOIN schools AS T2 ON T1.CDSCode = T2.CDSCode \nWHERE T2.County = 'Alameda' AND T1.\"Percent (%) Eligible Free (K-12)\" IS NOT NULL\t----- bird -----\tcalifornia_schools",
+  "1": "SELECT \"School Name\", \"Free Meal Count (Ages 5-17)\", \"Enrollment (Ages 5-17)\", (CAST(\"Free Meal Count (Ages 5-17)\" AS REAL) / \"Enrollment (Ages 5-17)\") AS eligible_free_rate \nFROM frpm \nWHERE \"School Type\" = 'Continuation' \nORDER BY eligible_free_rate ASC \nLIMIT 3\t----- bird -----\tcalifornia_schools"
+}

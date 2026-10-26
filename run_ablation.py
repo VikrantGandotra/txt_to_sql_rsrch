@@ -12,9 +12,9 @@ def main(argv=None):
     parser.add_argument("--dev-json", required=True)
     parser.add_argument("--db-dir", required=True)
     parser.add_argument("--limit", type=int, default=100)
-    parser.add_argument("--selection", choices=("self_consistency", "dspy_verifier", "hybrid_cascade"),
+    parser.add_argument("--selection", choices=("self_consistency", "dspy_verifier", "hybrid_cascade", "self_consistency_verifier"),
                         default="self_consistency",
-                        help="hybrid_cascade uses execution votes and DSPy ratings for tied top groups")
+                        help="hybrid_cascade judges ties only; self_consistency_verifier judges one representative of every execution group")
     parser.add_argument("--prompt-mode", choices=("compiled_dspy", "uncompiled_dspy", "baseline"),
                         default="compiled_dspy")
     parser.add_argument("--compiled-model", default=None)

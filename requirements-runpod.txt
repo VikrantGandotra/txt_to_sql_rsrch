@@ -1,0 +1,12 @@
+# Application dependencies pinned from the audited Windows environment.
+# Install in a separate Python 3.11+ virtualenv; this does not install vLLM/CUDA.
+openai==2.54.0
+langfuse==4.15.2
+pydantic==2.13.5
+pydantic-settings==2.15.0
+langchain-core==1.6.3
+langgraph==1.2.11
+dspy==3.3.1
+litellm==1.100.1
+networkx==3.6.1
+python-dotenv==1.2.3

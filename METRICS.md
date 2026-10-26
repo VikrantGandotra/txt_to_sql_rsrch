@@ -299,3 +299,30 @@ existing files are never silently overwritten. Set the vLLM URL before running:
 ```powershell
 python run_ablation.py --dev-json data\dev.json --db-dir data\dev_databases --limit 3 --selection self_consistency --prompt-mode uncompiled_dspy
 ```
+
+`--selection self_consistency_verifier` adds two conditions (compiled/uncompiled
+generation), extending the matrix from six to eight. It reuses the existing
+eight independent trajectories and full-result execution hashes. Every distinct
+result group supplies its earliest candidate to the existing DSPy rating judge,
+including a unanimous group. The highest rating wins; equal ratings use the
+larger execution-consensus group, then the earliest original candidate index.
+No gold SQL/EX label or arbitrary rating/vote weighting enters selection.
+
+This differs from `dspy_verifier`, which judges every eligible trajectory, and
+from `hybrid_cascade`, which judges only tied top groups. Grouping reduces judge
+calls to one per distinct result per verification sample. The tradeoff is that
+different SQL trajectories with identical execution results share one judged
+representative; this is not an assessment of every trajectory's reasoning.
+Existing three selection policies and the six-condition `smoke_test.py` remain
+unchanged. Run the new conditions explicitly with separate output paths.
+
+The new selection logs `groups`, `representative_indices`,
+`representative_votes`, `judge_engaged`, `scores`, and
+`selection_policy=rating_then_votes_then_earliest_index`. All generator usage
+across the original pool plus actual representative judge usage is aggregated
+once. Generator turn counts exclude judge samples, and the paired
+self-consistency baseline is scored from the same candidate pool. Failed or
+partial judging does not fall back to a favorable consensus answer; diagnostics
+and incomplete usage remain visible under the normal schema-4 rules. Context
+overflow and transport errors can still produce unknown usage; the mode cannot
+guarantee non-null measurements if the server returns no completion payload.
