@@ -89,6 +89,40 @@ class TolerantValidatorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.root / 'tolerance.acceptance.json').is_file())
 
+    def zero_call_selector(self):
+        metrics = dict(stages=[], lm_call_count=0, accounting_complete=True)
+        for field in ('prompt_tokens', 'completion_tokens', 'total_tokens', 'cost_usd'):
+            metrics[field] = metrics['observed_' + field] = 0
+        self.queries[94]['selection'] = dict(metrics=metrics, scores=[], errors=[],
+                                             selected_candidate_index=None)
+        return metrics
+
+    def test_empty_zero_call_selector_is_valid_with_two_incomplete_queries(self):
+        self.reject_request(494)
+        self.reject_request(527)
+        self.zero_call_selector()
+        result = self.validate(1)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_empty_selector_cannot_claim_nonzero_usage(self):
+        self.zero_call_selector()['total_tokens'] = 3
+        self.assertNotEqual(self.validate().returncode, 0)
+
+    def test_empty_selector_cannot_hide_recorded_calls(self):
+        self.zero_call_selector()['lm_call_count'] = 1
+        self.assertNotEqual(self.validate().returncode, 0)
+
+    def test_empty_generator_stages_still_rejected(self):
+        self.queries[94]['candidates'][0]['metrics']['stages'] = []
+        result = self.validate()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('question=94 component=generator', result.stderr)
+
+    def test_zero_call_selector_cannot_claim_judgment(self):
+        self.zero_call_selector()
+        self.queries[94]['selection']['scores'] = [{'candidate_index': 0, 'score': 0.8}]
+        self.assertNotEqual(self.validate().returncode, 0)
+
     def test_documented_context_rejection_passes_with_nulls_preserved(self):
         self.reject_request()
         result = self.validate(1)
@@ -130,7 +164,7 @@ class TolerantValidatorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         decision = json.loads((self.root / 'tolerance.acceptance.json').read_text())
         self.assertEqual(len(decision['incomplete_question_ids']), 10)
-        self.assertEqual(decision['policy'], 'tolerant-count-v2')
+        self.assertEqual(decision['policy'], 'tolerant-count-v3')
 
     def test_eleven_incomplete_queries_rejected(self):
         for i in range(11):

@@ -93,7 +93,7 @@ run_one() {
     mkdir -p "$directory"
     CURRENT_CONFIG="$prompt_mode/$name"
     matrix_status running
-    echo "Starting $CURRENT_CONFIG at $(date -u +%FT%TZ) (tolerant-count-v2)"
+    echo "Starting $CURRENT_CONFIG at $(date -u +%FT%TZ) (tolerant-count-v3)"
     # Keep a fresh attempt log: an old accounting traceback cannot excuse a new failure.
     local attempt started_ns
     attempt=$(mktemp "$directory/attempt.XXXXXXXX.log")
@@ -201,7 +201,27 @@ for q in queries:
         components.append(judge)
     for component in components:
         stages = component.get('stages')
-        require(isinstance(stages, list) and stages, 'Missing stage telemetry')
+        location = (f"question={q['question_id']} component="
+                    f"{'selector' if component is judge else 'generator'}")
+        require(isinstance(stages, list), 'Missing stage telemetry: ' + location)
+        if not stages:
+            # select_with_dspy explicitly reports a complete zero-call result
+            # when there are no eligible submissions to judge. This is measured
+            # absence of work, not lost usage. Never permit this for generation.
+            require(component is judge
+                    and component.get('accounting_complete') is True
+                    and type(component.get('lm_call_count')) is int
+                    and component['lm_call_count'] == 0,
+                    'Missing stage telemetry without zero-call selector evidence: ' + location)
+            complete(component)
+            for field in FIELDS:
+                equal(component[field], 0, field)
+                equal(component.get('observed_' + field), 0, field)
+            require((q.get('selection') or {}).get('scores') == []
+                    and (q.get('selection') or {}).get('errors') == []
+                    and (q.get('selection') or {}).get('selected_candidate_index') is None,
+                    'Zero-call selector has contradictory decision evidence: ' + location)
+            continue
         for stage in stages:
             # A parsing/model error does not invalidate exact recorded usage.
             # No exception strings are inspected by this acceptance policy.
@@ -238,7 +258,7 @@ for field in FIELDS:
 # logging failures and stale/incomplete reports still fail independently.
 
 # Preserve the policy decision separately; never alter report/checkpoint measurements.
-decision = dict(policy='tolerant-count-v2', accepted=True, max_incomplete_queries=10,
+decision = dict(policy='tolerant-count-v3', accepted=True, max_incomplete_queries=10,
                 incomplete_question_ids=incomplete, python_exit_code=exit_code,
                 accounting_complete=not incomplete, verified_utc=datetime.now(timezone.utc).isoformat(),
                 metrics_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
@@ -256,7 +276,7 @@ try:
 finally:
     if os.path.exists(temporary):
         os.unlink(temporary)
-print(f"ACCEPTED tolerant-count-v2: {path}; incomplete={len(incomplete)}/1534 "
+print(f"ACCEPTED tolerant-count-v3: {path}; incomplete={len(incomplete)}/1534 "
       f"(limit=10); Python exit={exit_code}; IDs={incomplete}. "
       'Original accounting flags, unknown totals and EX preserved.', flush=True)
 VALIDATE
@@ -272,5 +292,5 @@ if [[ "$DRY_RUN" == false ]]; then
     CURRENT_CONFIG=all_eight_configurations
     matrix_status completed
     MATRIX_COMPLETED=true
-    echo "All eight configurations accepted under tolerant-count-v2 at $(date -u +%FT%TZ). Results: $OUTPUT_ROOT"
+    echo "All eight configurations accepted under tolerant-count-v3 at $(date -u +%FT%TZ). Results: $OUTPUT_ROOT"
 fi

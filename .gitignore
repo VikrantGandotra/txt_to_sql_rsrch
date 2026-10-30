@@ -21,3 +21,10 @@ data/
 
 # Generated run logs
 artifacts/
+
+# Private migration notes and raw recovery snapshots
+/RUNPOD_MIGRATION.md
+MARS_Final_20261029/
+
+# Reproducible analysis outputs (generated locally)
+/analysis_outputs/
